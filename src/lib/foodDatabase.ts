@@ -1,3 +1,5 @@
+import { useFoodStore } from '../store/foodStore';
+
 export interface FoodItem {
     id: string;
     name: string;
@@ -100,12 +102,18 @@ export const FOOD_DATABASE: FoodItem[] = [
 
 export function searchFoods(query: string): FoodItem[] {
     const q = query.toLowerCase().trim();
-    if (!q) return FOOD_DATABASE;
-    return FOOD_DATABASE.filter(
+    const customFoods = useFoodStore.getState().customFoods;
+    const allFoods = [...customFoods, ...FOOD_DATABASE];
+
+    if (!q) return allFoods;
+
+    return allFoods.filter(
         (f) => f.name.toLowerCase().includes(q) || f.category.includes(q)
     );
 }
 
 export function getFoodsByCategory(category: FoodItem['category']): FoodItem[] {
-    return FOOD_DATABASE.filter((f) => f.category === category);
+    const customFoods = useFoodStore.getState().customFoods;
+    const allFoods = [...customFoods, ...FOOD_DATABASE];
+    return allFoods.filter((f) => f.category === category);
 }

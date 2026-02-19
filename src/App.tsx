@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
@@ -13,6 +13,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { GamingPage } from './pages/GamingPage';
 import { JournalPage } from './pages/JournalPage';
 import { MeditationPage } from './pages/MeditationPage';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { useAetherStore } from './store/aetherStore';
@@ -21,7 +22,6 @@ import { useAuthStore } from './store/authStore';
 const App: React.FC = () => {
   const onboardingComplete = useAetherStore((s) => s.onboardingComplete);
   const { user, loading, initialized, initAuthListener } = useAuthStore();
-  const [authPage, setAuthPage] = useState<'login' | 'register'>('login');
 
   // Initialize Firebase auth listener
   useEffect(() => {
@@ -60,16 +60,30 @@ const App: React.FC = () => {
       <div className="relative">
         <AnimatedBackground />
         <AnimatePresence mode="wait">
-          {authPage === 'login' ? (
-            <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <LoginPage onSwitchToRegister={() => setAuthPage('register')} />
-            </motion.div>
-          ) : (
-            <motion.div key="register" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <RegisterPage onSwitchToLogin={() => setAuthPage('login')} />
-            </motion.div>
-          )}
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <LoginPage />
+              </motion.div>
+            } />
+            <Route path="/register" element={
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <RegisterPage />
+              </motion.div>
+            } />
+            {/* Clean redirect for any other route to Landing Page if not logged in */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </AnimatePresence>
+
+        {/* Conditional rendering for Auth Pages overlay if triggered from Landing Page props (optional, but Routes approach is cleaner) 
+            Actually, the Landing Page controls `authPage` state but we are using Routes now? 
+            No, let's keep it simple. If `authPage` state changes, we can redirect or render. 
+            Better approach: 
+            The LandingPage component has buttons that should navigate to /login or /register.
+            Refactoring:
+        */}
       </div>
     );
   }

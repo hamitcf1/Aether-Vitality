@@ -27,7 +27,7 @@ export interface DailyCalorieLog {
     consumed: number;
     burned: number;
     target: number;
-    foods: { foodId: string; name: string; emoji: string; calories: number; sugar: number; servings: number; time: number }[];
+    foods: { foodId: string; name: string; emoji: string; calories: number; sugar: number; protein?: number; carbs?: number; fat?: number; servings: number; time: number }[];
 }
 
 export interface WeightEntry {
@@ -85,7 +85,7 @@ interface TrackersState {
 
     // Calories
     calorieLogs: DailyCalorieLog[];
-    addFood: (food: { foodId: string; name: string; emoji: string; calories: number; sugar: number; servings: number }) => void;
+    addFood: (food: { foodId: string; name: string; emoji: string; calories: number; sugar: number; protein?: number; carbs?: number; fat?: number; servings: number }) => void;
     setCalorieTarget: (target: number) => void;
 
     // Weight

@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 
-interface LoginPageProps {
-    onSwitchToRegister: () => void;
-}
-
-export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister }) => {
-    const { signInWithEmail, signInWithGoogle, loading, error, clearError } = useAuthStore();
+export const LoginPage: React.FC = () => {
+    const navigate = useNavigate();
+    const onSwitchToRegister = () => navigate('/register');
+    const { signInWithEmail, signInWithGoogle, error, loading, clearError } = useAuthStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);

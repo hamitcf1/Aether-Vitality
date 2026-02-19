@@ -1,5 +1,6 @@
 import { aiGenerateJSON, aiGenerate, isAIAvailable } from './aiProvider';
 import { lookupFood, cacheAIFood } from './aiCache';
+import { addFoodToGlobalDB } from './foodService';
 import type { FoodNutritionCache } from '../store/aiStore';
 
 // ── Types ──
@@ -13,6 +14,8 @@ export interface FoodAnalysis {
     fat: number;
     fiber: number;
     servingSize: string;
+    emoji?: string;
+    category?: 'fruit' | 'vegetable' | 'protein' | 'grain' | 'dairy' | 'snack' | 'drink' | 'fast-food' | 'meal';
 }
 
 export interface MealAnalysis {
@@ -20,6 +23,8 @@ export interface MealAnalysis {
     totalCalories: number;
     totalSugar: number;
     totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
     healthScore: number; // 1-10
     advice: string;
 }
@@ -50,7 +55,9 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
   "carbs": number (grams),
   "fat": number (grams),
   "fiber": number (grams),
-  "servingSize": "description of one standard serving"
+  "servingSize": "description of one standard serving",
+  "emoji": "single emoji representing the food",
+  "category": "one of: fruit, vegetable, protein, grain, dairy, snack, drink, fast-food, meal"
 }`;
 
     const result = await aiGenerateJSON<FoodAnalysis>({ prompt, temperature: 0.1 });
@@ -66,6 +73,20 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
             fat: result.fat ?? 0,
             fiber: result.fiber ?? 0,
             servingSize: result.servingSize ?? '1 serving',
+        });
+
+        // Save to global Firestore DB
+        addFoodToGlobalDB({
+            id: result.name.toLowerCase().replace(/\s+/g, '_'),
+            name: result.name,
+            emoji: result.emoji || '🍽️',
+            calories: result.calories,
+            sugar: result.sugar ?? 0,
+            protein: result.protein ?? 0,
+            carbs: result.carbs ?? 0,
+            fat: result.fat ?? 0,
+            servingSize: result.servingSize ?? '1 serving',
+            category: result.category || 'meal',
         });
 
         return lookupFood(foodName);
@@ -93,11 +114,13 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
     Return ONLY valid JSON (no markdown):
     {
       "items": [
-        { "name": "food name", "calories": number, "sugar": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "servingSize": "described portion" }
+        { "name": "food name", "calories": number, "sugar": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "servingSize": "described portion", "emoji": "single emoji", "category": "category string" }
       ],
       "totalCalories": number,
       "totalSugar": number,
       "totalProtein": number,
+      "totalCarbs": number,
+      "totalFat": number,
       "healthScore": number (1-10, where 10 is healthiest),
       "advice": "1-2 sentences of health advice about this meal in the same language as the input"
     }`;
@@ -117,6 +140,20 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
                     fat: item.fat ?? 0,
                     fiber: item.fiber ?? 0,
                     servingSize: item.servingSize ?? '1 serving',
+                });
+
+                // Save to global Firestore DB
+                addFoodToGlobalDB({
+                    id: item.name.toLowerCase().replace(/\s+/g, '_'),
+                    name: item.name,
+                    emoji: item.emoji || '🍽️',
+                    calories: item.calories,
+                    sugar: item.sugar ?? 0,
+                    protein: item.protein ?? 0,
+                    carbs: item.carbs ?? 0,
+                    fat: item.fat ?? 0,
+                    servingSize: item.servingSize ?? '1 serving',
+                    category: (item.category as any) || 'meal',
                 });
             }
         }

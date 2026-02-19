@@ -65,7 +65,28 @@ export const useAuthStore = create<AuthState>((set) => ({
     signInWithGoogle: async () => {
         set({ loading: true, error: null });
         try {
-            await signInWithPopup(auth, googleProvider);
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+
+            // Check if user doc exists, if not create it
+            const { doc, getDoc, setDoc } = await import('firebase/firestore');
+            const { db } = await import('../lib/firebase');
+
+            const userRef = doc(db, 'users', user.uid);
+            const userSnap = await getDoc(userRef);
+
+            if (!userSnap.exists()) {
+                await setDoc(userRef, {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL,
+                    createdAt: Date.now(),
+                    healthGoal: 'liver', // default
+                    difficulty: 'casual', // default
+                });
+            }
+
             set({ loading: false });
             return true;
         } catch (err: unknown) {

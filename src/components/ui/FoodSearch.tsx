@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Check } from 'lucide-react';
+import { Search, Plus, Check, Loader2 } from 'lucide-react';
 import { searchFoods, type FoodItem } from '../../lib/foodDatabase';
+import { searchGlobalFoods } from '../../lib/foodService';
 
 interface FoodSearchProps {
     onAddFood: (food: FoodItem, servings: number) => void;
@@ -10,10 +11,47 @@ interface FoodSearchProps {
 
 export const FoodSearch: React.FC<FoodSearchProps> = ({ onAddFood, className = '' }) => {
     const [query, setQuery] = useState('');
+    const [results, setResults] = useState<FoodItem[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
     const [servings, setServings] = useState<Record<string, number>>({});
 
-    const results = useMemo(() => searchFoods(query).slice(0, 20), [query]);
+    // Debounced search effect
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (!query.trim()) {
+                setResults(searchFoods('').slice(0, 20)); // Default to local static list
+                setIsSearching(false);
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                // 1. Search local static DB first for instant feedback
+                const localResults = searchFoods(query).slice(0, 5);
+
+                // 2. Search global Firestore DB
+                const globalResults = await searchGlobalFoods(query);
+
+                // 3. Merge results (prefer global if duplicates, or handle ID collision)
+                const mergedMap = new Map<string, FoodItem>();
+
+                [...localResults, ...globalResults].forEach(item => {
+                    // Use normalized ID or name to dedupe
+                    mergedMap.set(item.id, item);
+                });
+
+                setResults(Array.from(mergedMap.values()));
+            } catch (error) {
+                console.error("Search error:", error);
+                setResults(searchFoods(query).slice(0, 20)); // Fallback
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(timer);
+    }, [query]);
 
     const handleAdd = (food: FoodItem) => {
         const s = servings[food.id] || 1;
@@ -37,9 +75,12 @@ export const FoodSearch: React.FC<FoodSearchProps> = ({ onAddFood, className = '
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search foods..."
+                    placeholder="Search global foods..."
                     className="input-field pl-10 text-sm"
                 />
+                {isSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 animate-spin" />
+                )}
             </div>
 
             {/* Results */}
@@ -77,8 +118,8 @@ export const FoodSearch: React.FC<FoodSearchProps> = ({ onAddFood, className = '
                                         whileTap={{ scale: 0.9 }}
                                         onClick={() => handleAdd(food)}
                                         className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${isAdded
-                                                ? 'bg-emerald-500/20 text-emerald-400'
-                                                : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white'
+                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                            : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white'
                                             }`}
                                     >
                                         {isAdded ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -88,7 +129,7 @@ export const FoodSearch: React.FC<FoodSearchProps> = ({ onAddFood, className = '
                         );
                     })}
                 </AnimatePresence>
-                {results.length === 0 && query && (
+                {results.length === 0 && query && !isSearching && (
                     <p className="text-sm text-gray-600 text-center py-8">No foods found for &ldquo;{query}&rdquo;</p>
                 )}
             </div>

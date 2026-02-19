@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, User, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
-interface RegisterPageProps {
-    onSwitchToLogin: () => void;
-}
-
-export const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin }) => {
-    const { signUpWithEmail, signInWithGoogle, loading, error, clearError } = useAuthStore();
+export const RegisterPage: React.FC = () => {
+    const navigate = useNavigate();
+    const onSwitchToLogin = () => navigate('/login');
+    const { signUpWithEmail, signInWithGoogle, error, loading, clearError } = useAuthStore();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
     Settings, Trophy, Download, RotateCcw, ChevronRight,
     Heart, Brain, Shield, Flame, Star, MessageCircle, UtensilsCrossed, Upload,
-    Zap, Key, Database, Sparkles
+    Zap, Key, Database, Sparkles, LogOut,
 } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -11,6 +11,7 @@ import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { useAetherStore } from '../store/aetherStore';
 import { useAIStore } from '../store/aiStore';
+import { useAuthStore } from '../store/authStore';
 import { ACHIEVEMENTS } from '../lib/achievements';
 import { getTokenStats, AI_MODELS } from '../lib/aiProvider';
 
@@ -20,6 +21,7 @@ const goalIcons = { liver: Heart, anxiety: Brain, discipline: Shield };
 export const ProfilePage: React.FC = () => {
     const store = useAetherStore();
     const aiStore = useAIStore();
+    const authStore = useAuthStore();
     const profile = store.profile;
     const [editName, setEditName] = useState(false);
     const [newName, setNewName] = useState(profile?.name || '');
@@ -384,6 +386,15 @@ export const ProfilePage: React.FC = () => {
                     >
                         <span className="flex items-center gap-3 text-sm text-rose-400">
                             <RotateCcw className="w-4 h-4" /> Reset Progress
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-gray-600" />
+                    </button>
+                    <button
+                        onClick={() => authStore.signOut()}
+                        className="w-full flex items-center justify-between p-3 glass-subtle rounded-xl hover:bg-rose-500/5 transition-colors cursor-pointer"
+                    >
+                        <span className="flex items-center gap-3 text-sm text-gray-300 group-hover:text-rose-400">
+                            <LogOut className="w-4 h-4" /> Log Out
                         </span>
                         <ChevronRight className="w-4 h-4 text-gray-600" />
                     </button>

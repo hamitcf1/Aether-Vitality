@@ -95,7 +95,7 @@ export const DashboardPage: React.FC = () => {
                 hpImpact = impact.hpImpact;
                 advice = mealAnalysis.advice;
 
-                // Also log calories and sugar from the AI analysis
+                // Also log calories, sugar, and macros from the AI analysis
                 if (mealAnalysis.totalCalories > 0) {
                     trackers.addFood({
                         foodId: `meal_${Date.now()}`,
@@ -103,6 +103,9 @@ export const DashboardPage: React.FC = () => {
                         emoji: '🍽️',
                         calories: mealAnalysis.totalCalories,
                         sugar: mealAnalysis.totalSugar,
+                        protein: mealAnalysis.totalProtein,
+                        carbs: mealAnalysis.totalCarbs,
+                        fat: mealAnalysis.totalFat,
                         servings: 1,
                     });
                 }

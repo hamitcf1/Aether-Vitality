@@ -295,6 +295,9 @@ const CalorieTracker: React.FC = () => {
                             emoji: food.emoji,
                             calories: food.calories,
                             sugar: food.sugar,
+                            protein: food.protein,
+                            carbs: food.carbs,
+                            fat: food.fat,
                             servings,
                         });
                     }}
