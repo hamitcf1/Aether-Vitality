@@ -11,6 +11,8 @@ import { ProfilePage } from './pages/ProfilePage';
 import { TrackersPage } from './pages/TrackersPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { GamingPage } from './pages/GamingPage';
+import { JournalPage } from './pages/JournalPage';
+import { MeditationPage } from './pages/MeditationPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { useAetherStore } from './store/aetherStore';
@@ -93,6 +95,8 @@ const App: React.FC = () => {
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/gaming" element={<GamingPage />} />
               <Route path="/chat" element={<ChatPage />} />
+              <Route path="/journal" element={<JournalPage />} />
+              <Route path="/meditation" element={<MeditationPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

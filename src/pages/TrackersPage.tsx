@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Droplets, Footprints, Candy, Flame, Weight, Timer,
-    Plus, TrendingDown, TrendingUp,
+    Plus, Minus, Trash2, TrendingDown, TrendingUp,
 } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -77,6 +77,14 @@ const WaterTracker: React.FC = () => {
                     icon={<Droplets className="w-5 h-5 text-cyan-400" />}
                 />
                 <div className="flex items-center gap-3 mt-6">
+                    <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => store.removeWater(1)}
+                        className="btn-ghost p-3 text-cyan-400 hover:bg-cyan-400/10 rounded-xl"
+                        title="Remove glass"
+                    >
+                        <Minus className="w-5 h-5" />
+                    </motion.button>
                     <motion.button
                         whileTap={{ scale: 0.9 }}
                         onClick={() => store.addWater(1)}
@@ -166,6 +174,18 @@ const StepsTracker: React.FC = () => {
                         placeholder="Steps..."
                         className="input-field w-28 text-center text-sm"
                     />
+                    <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                            const n = parseInt(addAmount);
+                            if (n > 0) { store.removeSteps(n); setAddAmount(''); }
+                        }}
+                        disabled={!addAmount || parseInt(addAmount) <= 0}
+                        className="btn-ghost p-3 text-emerald-400 hover:bg-emerald-400/10 rounded-xl"
+                        title="Subtract steps"
+                    >
+                        <Minus className="w-5 h-5" />
+                    </motion.button>
                     <motion.button
                         whileTap={{ scale: 0.9 }}
                         onClick={() => {
@@ -287,12 +307,21 @@ const CalorieTracker: React.FC = () => {
                     <h3 className="text-sm font-bold text-white mb-3">Today&apos;s Food Log</h3>
                     <div className="space-y-1.5">
                         {today.foods.map((f, i) => (
-                            <div key={i} className="glass-subtle p-2.5 flex items-center justify-between">
+                            <div key={i} className="glass-subtle p-2.5 flex items-center justify-between group">
                                 <span className="flex items-center gap-2 text-sm text-white">
                                     <span>{f.emoji}</span> {f.name}
                                     {f.servings !== 1 && <span className="text-xs text-gray-500">×{f.servings}</span>}
                                 </span>
-                                <span className="text-xs font-bold text-amber-400">{Math.round(f.calories * f.servings)} cal</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold text-amber-400">{Math.round(f.calories * f.servings)} cal</span>
+                                    <button
+                                        onClick={() => store.removeFood(f.foodId)}
+                                        className="text-gray-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                                        title="Delete entry"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -343,6 +372,18 @@ const SugarTracker: React.FC = () => {
                         placeholder="Grams..."
                         className="input-field w-24 text-center text-sm"
                     />
+                    <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                            const n = parseFloat(addAmount);
+                            if (n > 0) { store.removeSugar(n); setAddAmount(''); }
+                        }}
+                        disabled={!addAmount || parseFloat(addAmount) <= 0}
+                        className="btn-ghost p-3 text-rose-400 hover:bg-rose-400/10 rounded-xl"
+                        title="Subtract sugar"
+                    >
+                        <Minus className="w-5 h-5" />
+                    </motion.button>
                     <motion.button
                         whileTap={{ scale: 0.9 }}
                         onClick={() => {

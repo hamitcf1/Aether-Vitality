@@ -197,7 +197,7 @@ export async function aiGenerateJSON<T>(request: AIRequest): Promise<T | null> {
         // Handle markdown-wrapped JSON
         let jsonText = response.text.trim();
         if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+            jsonText = jsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
         }
         return JSON.parse(jsonText) as T;
     } catch (err) {

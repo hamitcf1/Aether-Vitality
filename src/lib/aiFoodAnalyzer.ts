@@ -84,21 +84,23 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
     if (!isAIAvailable()) return null;
 
     const prompt = `Analyze this meal and break it into individual food items.
-For each item, provide nutritional analysis per the portion described.
-
-Meal: "${description}"
-
-Return ONLY valid JSON (no markdown):
-{
-  "items": [
-    { "name": "food name", "calories": number, "sugar": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "servingSize": "described portion" }
-  ],
-  "totalCalories": number,
-  "totalSugar": number,
-  "totalProtein": number,
-  "healthScore": number (1-10, where 10 is healthiest),
-  "advice": "1-2 sentences of health advice about this meal"
-}`;
+    The meal description may be in Turkish or English. Translate food names to English for the "name" field if they are in Turkish, but keep the original Turkish name in parentheses if it helps clarity.
+    
+    For each item, provide nutritional analysis per the portion described.
+    
+    Meal: "${description}"
+    
+    Return ONLY valid JSON (no markdown):
+    {
+      "items": [
+        { "name": "food name", "calories": number, "sugar": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "servingSize": "described portion" }
+      ],
+      "totalCalories": number,
+      "totalSugar": number,
+      "totalProtein": number,
+      "healthScore": number (1-10, where 10 is healthiest),
+      "advice": "1-2 sentences of health advice about this meal in the same language as the input"
+    }`;
 
     const result = await aiGenerateJSON<MealAnalysis>({ prompt, temperature: 0.2 });
 

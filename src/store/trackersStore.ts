@@ -107,6 +107,12 @@ interface TrackersState {
     getTodaySteps: () => DailyStepsLog;
     getTodaySugar: () => DailySugarLog;
     getTodayCalories: () => DailyCalorieLog;
+
+    // Remove actions
+    removeWater: (glasses?: number) => void;
+    removeSteps: (steps: number) => void;
+    removeSugar: (grams: number) => void;
+    removeFood: (foodId: string) => void;
 }
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
@@ -174,6 +180,15 @@ export const useTrackersStore = create<TrackersState>()(
                 }
                 set({ waterLogs: logs });
             },
+            removeWater: (glasses = 1) => {
+                const d = today();
+                const logs = [...get().waterLogs];
+                const idx = logs.findIndex((l) => l.date === d);
+                if (idx >= 0) {
+                    logs[idx] = { ...logs[idx], glasses: Math.max(0, logs[idx].glasses - glasses) };
+                    set({ waterLogs: logs });
+                }
+            },
 
             // Steps
             addSteps: (steps) => {
@@ -198,6 +213,15 @@ export const useTrackersStore = create<TrackersState>()(
                 }
                 set({ stepsLogs: logs });
             },
+            removeSteps: (steps) => {
+                const d = today();
+                const logs = [...get().stepsLogs];
+                const idx = logs.findIndex((l) => l.date === d);
+                if (idx >= 0) {
+                    logs[idx] = { ...logs[idx], steps: Math.max(0, logs[idx].steps - steps) };
+                    set({ stepsLogs: logs });
+                }
+            },
 
             // Sugar
             addSugar: (grams) => {
@@ -221,6 +245,15 @@ export const useTrackersStore = create<TrackersState>()(
                     logs.push({ date: d, grams: 0, target });
                 }
                 set({ sugarLogs: logs });
+            },
+            removeSugar: (grams) => {
+                const d = today();
+                const logs = [...get().sugarLogs];
+                const idx = logs.findIndex((l) => l.date === d);
+                if (idx >= 0) {
+                    logs[idx] = { ...logs[idx], grams: Math.max(0, logs[idx].grams - grams) };
+                    set({ sugarLogs: logs });
+                }
             },
 
             // Calories
@@ -254,6 +287,25 @@ export const useTrackersStore = create<TrackersState>()(
                     logs.push({ date: d, consumed: 0, burned: 0, target, foods: [] });
                 }
                 set({ calorieLogs: logs });
+            },
+            removeFood: (foodId) => {
+                const d = today();
+                const logs = [...get().calorieLogs];
+                const idx = logs.findIndex((l) => l.date === d);
+                if (idx >= 0) {
+                    const food = logs[idx].foods.find((f) => f.foodId === foodId);
+                    if (food) {
+                        const consumed = logs[idx].consumed - (food.calories * food.servings);
+                        const foods = logs[idx].foods.filter((f) => f.foodId !== foodId);
+                        logs[idx] = { ...logs[idx], consumed: Math.max(0, consumed), foods };
+                        set({ calorieLogs: logs });
+
+                        // Also remove sugar if applicable
+                        if (food.sugar > 0) {
+                            get().removeSugar(Math.round(food.sugar * food.servings));
+                        }
+                    }
+                }
             },
 
             // Weight
