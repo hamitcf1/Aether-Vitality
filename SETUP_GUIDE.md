@@ -47,8 +47,8 @@ You will need to fill in the **Gemini API Keys** (see Section 3).
 4.  once created, click the **Web icon (</>)** to add a web app.
     -   Name: `Aether Vitality Web`
     -   Click **Register app**.
-5.  **Copy the config object** (apiKey, authDomain, etc.) and update `src/lib/firebase.ts` if it differs from the current hardcoded values.
-    *(Note: The current codebase has a config pre-filled. If you are using your own Firebase project, you MUST update `src/lib/firebase.ts` with your new config.)*
+5.  **Copy the config object** (apiKey, authDomain, etc.) and update your `.env` file with these values.
+    *(Note: These variables must be prefixed with `VITE_` as shown in `.env.example`.)*
 
 ### Enable Authentication
 1.  Go to **Build > Authentication** in the sidebar.
