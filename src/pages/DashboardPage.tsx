@@ -95,8 +95,23 @@ export const DashboardPage: React.FC = () => {
                 hpImpact = impact.hpImpact;
                 advice = mealAnalysis.advice;
 
-                // Also log calories, sugar, and macros from the AI analysis
-                if (mealAnalysis.totalCalories > 0) {
+                // Also log individual items with their specific portions
+                if (mealAnalysis.items && mealAnalysis.items.length > 0) {
+                    mealAnalysis.items.forEach(item => {
+                        trackers.addFood({
+                            foodId: `meal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            name: item.name,
+                            emoji: item.emoji || '🍽️',
+                            calories: item.calories, // AI returns calories per unit/serving
+                            sugar: item.sugar,
+                            protein: item.protein,
+                            carbs: item.carbs,
+                            fat: item.fat,
+                            servings: item.quantity || 1,
+                        });
+                    });
+                } else if (mealAnalysis.totalCalories > 0) {
+                    // Fallback for aggregate only
                     trackers.addFood({
                         foodId: `meal_${Date.now()}`,
                         name: mealInput,

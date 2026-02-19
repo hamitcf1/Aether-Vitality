@@ -13,6 +13,7 @@ export interface FoodAnalysis {
     carbs: number;
     fat: number;
     fiber: number;
+    quantity: number;
     servingSize: string;
     emoji?: string;
     category?: 'fruit' | 'vegetable' | 'protein' | 'grain' | 'dairy' | 'snack' | 'drink' | 'fast-food' | 'meal';
@@ -114,7 +115,7 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
     Return ONLY valid JSON (no markdown):
     {
       "items": [
-        { "name": "food name", "calories": number, "sugar": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "servingSize": "described portion", "emoji": "single emoji", "category": "category string" }
+        { "name": "food name", "quantity": number, "calories": number, "sugar": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "servingSize": "described portion", "emoji": "single emoji", "category": "category string" }
       ],
       "totalCalories": number,
       "totalSugar": number,
