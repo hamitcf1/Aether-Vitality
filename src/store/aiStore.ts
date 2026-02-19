@@ -1,0 +1,202 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { format } from 'date-fns';
+
+// ── Types ──
+
+export interface AIKeyConfig {
+    key: string;
+    label: string;
+    enabled: boolean;
+    tokensUsedToday: number;
+    lastResetDate: string;
+}
+
+export interface AIRequestLog {
+    timestamp: number;
+    model: string;
+    tokensInput: number;
+    tokensOutput: number;
+    feature: string;
+    cached: boolean;
+}
+
+export interface FoodNutritionCache {
+    name: string;
+    calories: number;
+    sugar: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
+    source: 'ai' | 'database' | 'user';
+    timestamp: number;
+    servingSize: string;
+}
+
+interface AIState {
+    // API keys
+    apiKeys: AIKeyConfig[];
+    addApiKey: (key: string, label: string) => void;
+    removeApiKey: (key: string) => void;
+    toggleApiKey: (key: string) => void;
+
+    // Token budget
+    dailyTokenBudget: number;
+    setDailyTokenBudget: (budget: number) => void;
+    todayTokensUsed: number;
+    totalTokensUsed: number;
+
+    // Model preference
+    preferredModel: string;
+    setPreferredModel: (model: string) => void;
+    fallbackEnabled: boolean;
+    setFallbackEnabled: (enabled: boolean) => void;
+
+    // Request logging
+    requestLog: AIRequestLog[];
+    logRequest: (entry: Omit<AIRequestLog, 'timestamp'>) => void;
+
+    // Food cache
+    foodCache: Record<string, FoodNutritionCache>;
+    getCachedFood: (name: string) => FoodNutritionCache | null;
+    cacheFood: (data: FoodNutritionCache) => void;
+    getFoodCacheStats: () => { count: number; aiCount: number; dbCount: number };
+
+    // Token management
+    addTokenUsage: (input: number, output: number, keyIndex?: number) => void;
+    getTokenUsage: () => { today: number; limit: number; remaining: number; percentage: number };
+    resetDailyTokens: () => void;
+
+    // Availability
+    isAIAvailable: () => boolean;
+}
+
+function normalizeKey(name: string): string {
+    return name.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+const today = () => format(new Date(), 'yyyy-MM-dd');
+
+export const useAIStore = create<AIState>()(
+    persist(
+        (set, get) => ({
+            // Initial state
+            apiKeys: [],
+            dailyTokenBudget: 1_000_000,
+            todayTokensUsed: 0,
+            totalTokensUsed: 0,
+            preferredModel: 'gemini-2.0-flash',
+            fallbackEnabled: true,
+            requestLog: [],
+            foodCache: {},
+
+            // API key management
+            addApiKey: (key, label) =>
+                set((s) => ({
+                    apiKeys: [...s.apiKeys, { key, label, enabled: true, tokensUsedToday: 0, lastResetDate: today() }],
+                })),
+
+            removeApiKey: (key) =>
+                set((s) => ({ apiKeys: s.apiKeys.filter((k) => k.key !== key) })),
+
+            toggleApiKey: (key) =>
+                set((s) => ({
+                    apiKeys: s.apiKeys.map((k) => (k.key === key ? { ...k, enabled: !k.enabled } : k)),
+                })),
+
+            // Token budget
+            setDailyTokenBudget: (budget) => set({ dailyTokenBudget: budget }),
+
+            // Model preference
+            setPreferredModel: (model) => set({ preferredModel: model }),
+            setFallbackEnabled: (enabled) => set({ fallbackEnabled: enabled }),
+
+            // Request logging
+            logRequest: (entry) =>
+                set((s) => ({
+                    requestLog: [{ ...entry, timestamp: Date.now() }, ...s.requestLog].slice(0, 100),
+                })),
+
+            // Food cache
+            getCachedFood: (name) => {
+                const key = normalizeKey(name);
+                return get().foodCache[key] ?? null;
+            },
+
+            cacheFood: (data) =>
+                set((s) => ({
+                    foodCache: {
+                        ...s.foodCache,
+                        [normalizeKey(data.name)]: { ...data, timestamp: Date.now() },
+                    },
+                })),
+
+            getFoodCacheStats: () => {
+                const cache = Object.values(get().foodCache);
+                return {
+                    count: cache.length,
+                    aiCount: cache.filter((f) => f.source === 'ai').length,
+                    dbCount: cache.filter((f) => f.source === 'database').length,
+                };
+            },
+
+            // Token usage
+            addTokenUsage: (input, output, keyIndex) => {
+                const total = input + output;
+                set((s) => {
+                    const currentDate = today();
+                    // Auto-reset if new day
+                    const todayTokens = s.requestLog.length > 0 &&
+                        format(new Date(s.requestLog[0]?.timestamp ?? 0), 'yyyy-MM-dd') !== currentDate
+                        ? total
+                        : s.todayTokensUsed + total;
+
+                    const keys = s.apiKeys.map((k, i) => {
+                        if (i !== keyIndex) return k;
+                        const resetNeeded = k.lastResetDate !== currentDate;
+                        return {
+                            ...k,
+                            tokensUsedToday: resetNeeded ? total : k.tokensUsedToday + total,
+                            lastResetDate: currentDate,
+                        };
+                    });
+
+                    return {
+                        todayTokensUsed: todayTokens,
+                        totalTokensUsed: s.totalTokensUsed + total,
+                        apiKeys: keys,
+                    };
+                });
+            },
+
+            getTokenUsage: () => {
+                const s = get();
+                const remaining = Math.max(0, s.dailyTokenBudget - s.todayTokensUsed);
+                return {
+                    today: s.todayTokensUsed,
+                    limit: s.dailyTokenBudget,
+                    remaining,
+                    percentage: Math.round((s.todayTokensUsed / s.dailyTokenBudget) * 100),
+                };
+            },
+
+            resetDailyTokens: () =>
+                set((s) => ({
+                    todayTokensUsed: 0,
+                    apiKeys: s.apiKeys.map((k) => ({ ...k, tokensUsedToday: 0, lastResetDate: today() })),
+                })),
+
+            // Availability check
+            isAIAvailable: () => {
+                const s = get();
+                const hasKeys =
+                    s.apiKeys.some((k) => k.enabled) ||
+                    !!import.meta.env.VITE_GEMINI_API_KEY;
+                const hasTokenBudget = s.todayTokensUsed < s.dailyTokenBudget;
+                return hasKeys && hasTokenBudget;
+            },
+        }),
+        { name: 'aether-ai-store' }
+    )
+);

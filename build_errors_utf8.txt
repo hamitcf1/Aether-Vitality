@@ -1,0 +1,13 @@
+﻿
+> new_project@0.0.0 build
+> tsc -b && vite build
+
+src/pages/ChatPage.tsx(9,22): error TS6133: 'isAIAvailable' is declared but its value is never read.
+src/pages/DashboardPage.tsx(209,29): error TS2322: Type '{ icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 4 more ...; color: string; }' is not assignable to type 'IntrinsicAttributes & MiniTrackerProps'.
+  Property 'target' does not exist on type 'IntrinsicAttributes & MiniTrackerProps'.
+src/pages/DashboardPage.tsx(219,29): error TS2322: Type '{ icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 4 more ...; color: string; }' is not assignable to type 'IntrinsicAttributes & MiniTrackerProps'.
+  Property 'target' does not exist on type 'IntrinsicAttributes & MiniTrackerProps'.
+src/pages/DashboardPage.tsx(229,29): error TS2322: Type '{ icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 4 more ...; color: string; }' is not assignable to type 'IntrinsicAttributes & MiniTrackerProps'.
+  Property 'target' does not exist on type 'IntrinsicAttributes & MiniTrackerProps'.
+src/pages/DashboardPage.tsx(239,29): error TS2322: Type '{ icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; ... 4 more ...; color: string; }' is not assignable to type 'IntrinsicAttributes & MiniTrackerProps'.
+  Property 'target' does not exist on type 'IntrinsicAttributes & MiniTrackerProps'.
