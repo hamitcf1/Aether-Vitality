@@ -22,9 +22,10 @@ export interface AIResponse {
 // ── Models Registry ──
 
 export const AI_MODELS = [
-    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', tier: 'fast', costPer1kTokens: 0.0 },
-    { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', tier: 'lite', costPer1kTokens: 0.0 },
-    { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', tier: 'fast', costPer1kTokens: 0.0 },
+    { id: 'gemini-3-flash', label: 'Gemini 3 Flash', tier: 'fast', costPer1kTokens: 0.0 },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'fast', costPer1kTokens: 0.0 },
+    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', tier: 'pro', costPer1kTokens: 0.0 },
+    { id: 'gemini-3-pro', label: 'Gemini 3 Pro', tier: 'pro', costPer1kTokens: 0.0 },
 ] as const;
 
 // ── Client Pool ──

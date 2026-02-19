@@ -12,7 +12,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { useAetherStore } from '../store/aetherStore';
 import { useAIStore } from '../store/aiStore';
 import { ACHIEVEMENTS } from '../lib/achievements';
-import { getTokenStats } from '../lib/aiProvider';
+import { getTokenStats, AI_MODELS } from '../lib/aiProvider';
 
 const AVATARS = ['🧙', '🧪', '⚗️', '🔮', '🌿', '🧬', '🦉', '🐉'];
 const goalIcons = { liver: Heart, anxiety: Brain, discipline: Shield };
@@ -260,9 +260,11 @@ export const ProfilePage: React.FC = () => {
                                 onChange={(e) => aiStore.setPreferredModel(e.target.value)}
                                 className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/30"
                             >
-                                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
-                                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
-                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                {AI_MODELS.map(model => (
+                                    <option key={model.id} value={model.id}>
+                                        {model.label} ({model.tier})
+                                    </option>
+                                ))}
                             </select>
                         </div>
 

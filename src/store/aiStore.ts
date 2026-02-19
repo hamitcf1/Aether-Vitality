@@ -86,7 +86,7 @@ export const useAIStore = create<AIState>()(
             dailyTokenBudget: 1_000_000,
             todayTokensUsed: 0,
             totalTokensUsed: 0,
-            preferredModel: 'gemini-2.0-flash',
+            preferredModel: 'gemini-2.5-flash',
             fallbackEnabled: true,
             requestLog: [],
             foodCache: {},

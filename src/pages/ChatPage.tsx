@@ -100,7 +100,7 @@ RULES:
                 }));
 
                 const result = await client.models.generateContent({
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-2.5-flash',
                     contents: [
                         { role: 'user', parts: [{ text: getSystemPrompt() }] },
                         { role: 'model', parts: [{ text: 'I am the Alchemist. I understand my role and the user\'s stats. How may I guide you, Seeker?' }] },
