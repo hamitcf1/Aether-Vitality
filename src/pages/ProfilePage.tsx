@@ -9,6 +9,7 @@ import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
+import { getCursorEnabled, setCursorEnabled } from '../components/ui/CustomCursor';
 import { useAetherStore } from '../store/aetherStore';
 import { useAIStore } from '../store/aiStore';
 import { useAuthStore } from '../store/authStore';
@@ -30,8 +31,10 @@ export const ProfilePage: React.FC = () => {
     const [newName, setNewName] = useState(profile?.name || '');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [newApiKey, setNewApiKey] = useState('');
+
     const [newKeyLabel, setNewKeyLabel] = useState('');
     const [showAISettings, setShowAISettings] = useState(false);
+    const [cursorEnabled, setCursorEnabledState] = useState(getCursorEnabled());
 
     const GoalIcon = goalIcons[profile?.healthGoal || 'liver'];
     const tokenStats = getTokenStats();
@@ -373,6 +376,25 @@ export const ProfilePage: React.FC = () => {
                     <h3 className="text-sm font-bold text-white">Settings</h3>
                 </div>
                 <div className="space-y-1">
+                    {/* Custom Cursor Toggle */}
+                    <div className="w-full flex items-center justify-between p-3 glass-subtle rounded-xl mb-1">
+                        <span className="flex items-center gap-3 text-sm text-gray-300">
+                            <Sparkles className="w-4 h-4 text-emerald-400" /> Custom Cursor
+                        </span>
+                        <button
+                            onClick={() => {
+                                const newState = !cursorEnabled;
+                                setCursorEnabled(newState);
+                                setCursorEnabledState(newState);
+                            }}
+                            className={`w-10 h-6 rounded-full p-1 transition-colors relative cursor-pointer ${cursorEnabled ? 'bg-emerald-500/20 shadow-inner' : 'bg-gray-500/10'
+                                }`}
+                        >
+                            <div className={`w-4 h-4 rounded-full shadow-sm transition-all ${cursorEnabled ? 'bg-emerald-400 translate-x-4' : 'bg-gray-500 translate-x-0'
+                                }`} />
+                        </button>
+                    </div>
+
                     <button onClick={handleExport} className="w-full flex items-center justify-between p-3 glass-subtle rounded-xl hover:bg-white/[0.04] transition-colors cursor-pointer">
                         <span className="flex items-center gap-3 text-sm text-gray-300">
                             <Download className="w-4 h-4 text-cyan-400" /> Export Data
