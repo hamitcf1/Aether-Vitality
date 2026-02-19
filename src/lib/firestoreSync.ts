@@ -8,8 +8,27 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
-// ── Debounce timers per doc path ──
-const timers = new Map<string, ReturnType<typeof setTimeout>>();
+// ── Pending save queue ──
+interface PendingSave {
+    timer: ReturnType<typeof setTimeout>;
+    uid: string;
+    docName: string;
+    data: Record<string, unknown>;
+}
+
+const pending = new Map<string, PendingSave>();
+
+/**
+ * Actually write data to Firestore (helper).
+ */
+async function writeSave(uid: string, docName: string, data: Record<string, unknown>) {
+    try {
+        const ref = doc(db, 'users', uid, 'data', docName);
+        await setDoc(ref, { ...data, _updatedAt: Date.now() }, { merge: true });
+    } catch (err) {
+        console.error(`[firestoreSync] Failed to save users/${uid}/data/${docName}:`, err);
+    }
+}
 
 /**
  * Save data to Firestore with debouncing (500ms).
@@ -23,20 +42,36 @@ export function saveToFirestore(
     const path = `users/${uid}/data/${docName}`;
 
     // Clear existing timer for this path
-    const existing = timers.get(path);
-    if (existing) clearTimeout(existing);
+    const existing = pending.get(path);
+    if (existing) clearTimeout(existing.timer);
 
-    const timer = setTimeout(async () => {
-        timers.delete(path);
-        try {
-            const ref = doc(db, 'users', uid, 'data', docName);
-            await setDoc(ref, { ...data, _updatedAt: Date.now() }, { merge: true });
-        } catch (err) {
-            console.error(`[firestoreSync] Failed to save ${path}:`, err);
-        }
+    const timer = setTimeout(() => {
+        pending.delete(path);
+        writeSave(uid, docName, data);
     }, 500);
 
-    timers.set(path, timer);
+    pending.set(path, { timer, uid, docName, data });
+}
+
+/**
+ * Immediately save to Firestore (bypasses debounce).
+ * Use for critical writes like completeOnboarding.
+ */
+export async function saveToFirestoreImmediate(
+    uid: string,
+    docName: string,
+    data: Record<string, unknown>
+): Promise<void> {
+    const path = `users/${uid}/data/${docName}`;
+
+    // Cancel any pending debounced save for this path
+    const existing = pending.get(path);
+    if (existing) {
+        clearTimeout(existing.timer);
+        pending.delete(path);
+    }
+
+    await writeSave(uid, docName, data);
 }
 
 /**
@@ -61,9 +96,12 @@ export async function loadFromFirestore(
 }
 
 /**
- * Flush all pending saves immediately (call before logout).
+ * Flush all pending saves immediately — actually executes them (call before logout).
  */
 export function flushPendingSaves(): void {
-    timers.forEach((timer) => clearTimeout(timer));
-    timers.clear();
+    pending.forEach((save) => {
+        clearTimeout(save.timer);
+        writeSave(save.uid, save.docName, save.data);
+    });
+    pending.clear();
 }

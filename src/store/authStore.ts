@@ -162,7 +162,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     initAuthListener: () => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Load all Firestore-backed stores
+                set({ loading: true });
+                // Load all Firestore-backed stores — MUST await before setting initialized
                 const { useUserStore } = await import('./userStore');
                 const { useAetherStore } = await import('./aetherStore');
                 const { useTrackersStore } = await import('./trackersStore');
@@ -170,10 +171,12 @@ export const useAuthStore = create<AuthState>((set) => ({
                 const { useJournalStore } = await import('./journalStore');
 
                 useUserStore.getState().subscribeToProfile(user.uid);
-                useAetherStore.getState().loadData(user.uid);
-                useTrackersStore.getState().loadData(user.uid);
-                useAIStore.getState().loadData(user.uid);
-                useJournalStore.getState().loadData(user.uid);
+                await Promise.all([
+                    useAetherStore.getState().loadData(user.uid),
+                    useTrackersStore.getState().loadData(user.uid),
+                    useAIStore.getState().loadData(user.uid),
+                    useJournalStore.getState().loadData(user.uid),
+                ]);
             } else {
                 // User logged out — clear user profile (listener is cleaned via clearProfile)
                 const { useUserStore } = await import('./userStore');

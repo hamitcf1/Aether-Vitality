@@ -25,9 +25,33 @@ import { isAIAvailable } from '../lib/aiProvider';
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
-    const store = useAetherStore();
-    const trackers = useTrackersStore();
-    const greeting = useGreeting(store.profile?.name || 'Seeker');
+
+    // Select individual fields instead of entire store to prevent cascade re-renders
+    const profile = useAetherStore((s) => s.profile);
+    const hp = useAetherStore((s) => s.hp);
+    const mana = useAetherStore((s) => s.mana);
+    const xp = useAetherStore((s) => s.xp);
+    const level = useAetherStore((s) => s.level);
+    const streak = useAetherStore((s) => s.streak);
+    const daysActive = useAetherStore((s) => s.daysActive);
+    const mealsLogged = useAetherStore((s) => s.mealsLogged);
+    const questsCompleted = useAetherStore((s) => s.questsCompleted);
+    const quests = useAetherStore((s) => s.quests);
+    const mealHistory = useAetherStore((s) => s.mealHistory);
+    const hpHistory = useAetherStore((s) => s.hpHistory);
+    const generateDailyQuests = useAetherStore((s) => s.generateDailyQuests);
+    const updateStreak = useAetherStore((s) => s.updateStreak);
+    const checkAchievements = useAetherStore((s) => s.checkAchievements);
+    const logMeal = useAetherStore((s) => s.logMeal);
+    const updateQuestProgress = useAetherStore((s) => s.updateQuestProgress);
+    const completeQuest = useAetherStore((s) => s.completeQuest);
+
+    const getTodayWater = useTrackersStore((s) => s.getTodayWater);
+    const getTodaySteps = useTrackersStore((s) => s.getTodaySteps);
+    const getTodayCalories = useTrackersStore((s) => s.getTodayCalories);
+    const getTodaySugar = useTrackersStore((s) => s.getTodaySugar);
+    const addFood = useTrackersStore((s) => s.addFood);
+    const greeting = useGreeting(profile?.name || 'Seeker');
 
     const [showMealModal, setShowMealModal] = useState(false);
     const [mealInput, setMealInput] = useState('');
@@ -35,19 +59,19 @@ export const DashboardPage: React.FC = () => {
     const [newAchievements, setNewAchievements] = useState<string[]>([]);
     const [aiInsight, setAiInsight] = useState<string | null>(null);
 
-    const xpProgress = getXPProgress(store.xp, store.level);
-    const xpNeeded = getXPForNextLevel(store.level);
-    const activeQuests = store.quests.filter((q) => !q.completed).slice(0, 3);
+    const xpProgress = getXPProgress(xp, level);
+    const xpNeeded = getXPForNextLevel(level);
+    const activeQuests = quests.filter((q) => !q.completed).slice(0, 3);
 
-    const todayWater = trackers.getTodayWater();
-    const todaySteps = trackers.getTodaySteps();
-    const todayCalories = trackers.getTodayCalories();
-    const todaySugar = trackers.getTodaySugar();
+    const todayWater = getTodayWater();
+    const todaySteps = getTodaySteps();
+    const todayCalories = getTodayCalories();
+    const todaySugar = getTodaySugar();
 
     // Generate daily quests on mount
     useEffect(() => {
-        store.generateDailyQuests();
-        store.updateStreak();
+        generateDailyQuests();
+        updateStreak();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -63,7 +87,7 @@ export const DashboardPage: React.FC = () => {
                 calorieTarget: todayCalories.target,
                 sugarGrams: todaySugar.grams,
                 sugarTarget: todaySugar.target,
-                streak: store.streak,
+                streak,
             }).then(setAiInsight);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,14 +95,14 @@ export const DashboardPage: React.FC = () => {
 
     // Check achievements
     useEffect(() => {
-        const unlocked = store.checkAchievements();
+        const unlocked = checkAchievements();
         if (unlocked.length > 0) {
             setNewAchievements(unlocked);
             const timer = setTimeout(() => setNewAchievements([]), 5000);
             return () => clearTimeout(timer);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store.mealsLogged, store.questsCompleted, store.streak, store.level]);
+    }, [mealsLogged, questsCompleted, streak, level]);
 
     const handleLogMeal = useCallback(async () => {
         if (!mealInput.trim()) return;
@@ -98,7 +122,7 @@ export const DashboardPage: React.FC = () => {
                 // Also log individual items with their specific portions
                 if (mealAnalysis.items && mealAnalysis.items.length > 0) {
                     mealAnalysis.items.forEach(item => {
-                        trackers.addFood({
+                        addFood({
                             foodId: `meal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                             name: item.name,
                             emoji: item.emoji || '🍽️',
@@ -112,7 +136,7 @@ export const DashboardPage: React.FC = () => {
                     });
                 } else if (mealAnalysis.totalCalories > 0) {
                     // Fallback for aggregate only
-                    trackers.addFood({
+                    addFood({
                         foodId: `meal_${Date.now()}`,
                         name: mealInput,
                         emoji: '🍽️',
@@ -126,18 +150,18 @@ export const DashboardPage: React.FC = () => {
                 }
             } else {
                 // Fallback to old method
-                const profile = `Goal: ${store.profile?.healthGoal}, Difficulty: ${store.profile?.difficulty}, HP: ${store.hp}`;
-                advice = await getAlchemistAdvice(mealInput, profile);
+                const profileStr = `Goal: ${profile?.healthGoal}, Difficulty: ${profile?.difficulty}, HP: ${hp}`;
+                advice = await getAlchemistAdvice(mealInput, profileStr);
                 const positive = /healthy|green|salad|fish|chicken|fruit|vegetable|water|soup|oat/i.test(mealInput);
                 hpImpact = positive ? Math.floor(Math.random() * 10 + 5) : -Math.floor(Math.random() * 10 + 3);
             }
 
-            store.logMeal(mealInput, hpImpact, advice);
+            logMeal(mealInput, hpImpact, advice);
 
             // Update quest progress for meal logging
-            store.quests.forEach((q) => {
+            quests.forEach((q) => {
                 if (q.title === 'Substance Analysis' && !q.completed) {
-                    store.updateQuestProgress(q.id, q.progress + 1);
+                    updateQuestProgress(q.id, q.progress + 1);
                 }
             });
 
@@ -145,7 +169,7 @@ export const DashboardPage: React.FC = () => {
             setShowMealModal(false);
         } catch { /* ignore */ }
         setIsLogging(false);
-    }, [mealInput, store, trackers]);
+    }, [mealInput, profile, hp, quests, logMeal, updateQuestProgress, addFood]);
 
     return (
         <PageTransition className="space-y-6">
@@ -180,30 +204,30 @@ export const DashboardPage: React.FC = () => {
                         {greeting}
                     </motion.h1>
                     <p className="text-sm text-gray-500 mt-1">
-                        Day {store.daysActive || 1} of your transmutation journey
+                        Day {daysActive || 1} of your transmutation journey
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-2xl">{store.profile?.avatar}</span>
+                    <span className="text-2xl">{profile?.avatar}</span>
                 </div>
             </div>
 
             {/* Stat Cards Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <StatCard icon={Heart} label="Aether Integrity" value={store.hp} color="rose" subLabel="HP">
-                    <ProgressBar value={store.hp} variant="rose" size="sm" />
+                <StatCard icon={Heart} label="Aether Integrity" value={hp} color="rose" subLabel="HP">
+                    <ProgressBar value={hp} variant="rose" size="sm" />
                 </StatCard>
-                <StatCard icon={Zap} label="Zenith Focus" value={store.mana} color="cyan" subLabel="Mana">
-                    <ProgressBar value={store.mana} variant="cyan" size="sm" />
+                <StatCard icon={Zap} label="Zenith Focus" value={mana} color="cyan" subLabel="Mana">
+                    <ProgressBar value={mana} variant="cyan" size="sm" />
                 </StatCard>
-                <StatCard icon={Flame} label="Streak" value={store.streak} color="gold" subLabel={`${store.streak} days`}>
+                <StatCard icon={Flame} label="Streak" value={streak} color="gold" subLabel={`${streak} days`}>
                     <div className="flex gap-0.5 mt-1">
                         {[...Array(7)].map((_, i) => (
-                            <div key={i} className={`h-1.5 w-full rounded-full ${i < store.streak % 7 ? 'bg-amber-400' : 'bg-white/[0.04]'}`} />
+                            <div key={i} className={`h-1.5 w-full rounded-full ${i < streak % 7 ? 'bg-amber-400' : 'bg-white/[0.04]'}`} />
                         ))}
                     </div>
                 </StatCard>
-                <StatCard icon={Star} label="Total XP" value={store.xp} color="emerald" subLabel={`Lv.${store.level}`}>
+                <StatCard icon={Star} label="Total XP" value={xp} color="emerald" subLabel={`Lv.${level}`}>
                     <ProgressBar value={xpProgress} variant="emerald" size="sm" />
                 </StatCard>
             </div>
@@ -277,16 +301,16 @@ export const DashboardPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* XP Ring + Level Info */}
                 <GlassCard className="flex flex-col items-center py-8" glow="emerald">
-                    <XPRing progress={xpProgress} level={store.level} size={140} />
+                    <XPRing progress={xpProgress} level={level} size={140} />
                     <p className="text-xs text-gray-500 mt-4 font-mono">
-                        {store.xp} / {xpNeeded} XP to Level {store.level + 1}
+                        {xp} / {xpNeeded} XP to Level {level + 1}
                     </p>
                     <div className="flex gap-2 mt-4">
                         <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg font-medium">
-                            🍽️ {store.mealsLogged} meals
+                            🍽️ {mealsLogged} meals
                         </span>
                         <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded-lg font-medium">
-                            📜 {store.questsCompleted} quests
+                            📜 {questsCompleted} quests
                         </span>
                     </div>
                 </GlassCard>
@@ -300,9 +324,9 @@ export const DashboardPage: React.FC = () => {
                         </div>
                         <span className="text-xs text-gray-600">Last 7 entries</span>
                     </div>
-                    {store.hpHistory.length > 1 ? (
+                    {hpHistory.length > 1 ? (
                         <ResponsiveContainer width="100%" height={160}>
-                            <AreaChart data={store.hpHistory.slice(-7)}>
+                            <AreaChart data={hpHistory.slice(-7)}>
                                 <defs>
                                     <linearGradient id="hpGradient" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -335,8 +359,8 @@ export const DashboardPage: React.FC = () => {
                     <MessageCircle className="w-5 h-5" /> Ask Alchemist
                 </button>
                 <button onClick={() => {
-                    const q = store.quests.find(q => !q.completed);
-                    if (q) store.updateQuestProgress(q.id, q.progress + 1);
+                    const q = quests.find(q => !q.completed);
+                    if (q) updateQuestProgress(q.id, q.progress + 1);
                 }} className="btn-secondary flex items-center justify-center gap-3 py-4 text-sm">
                     <Target className="w-5 h-5" /> Quick Progress
                 </button>
@@ -354,7 +378,7 @@ export const DashboardPage: React.FC = () => {
                             <QuestCard
                                 key={quest.id}
                                 quest={quest}
-                                onComplete={() => store.completeQuest(quest.id)}
+                                onComplete={() => completeQuest(quest.id)}
                             />
                         ))}
                     </div>
@@ -362,13 +386,13 @@ export const DashboardPage: React.FC = () => {
             )}
 
             {/* Recent Activity */}
-            {store.mealHistory.length > 0 && (
+            {mealHistory.length > 0 && (
                 <GlassCard>
                     <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                         <UtensilsCrossed className="w-4 h-4 text-rose-400" /> Recent Meals
                     </h3>
                     <div className="space-y-2">
-                        {store.mealHistory.slice(0, 5).map((log) => (
+                        {mealHistory.slice(0, 5).map((log) => (
                             <div key={log.id} className="glass-subtle p-3 flex items-center justify-between">
                                 <div>
                                     <span className="text-sm font-medium text-white">{log.meal}</span>

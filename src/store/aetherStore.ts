@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { getLevelFromXP, ACHIEVEMENTS } from '../lib/achievements';
 import { format } from 'date-fns';
-import { saveToFirestore, loadFromFirestore } from '../lib/firestoreSync';
+import { saveToFirestore, saveToFirestoreImmediate, loadFromFirestore } from '../lib/firestoreSync';
 
 // ── Types ──
 export interface Quest {
@@ -207,8 +207,18 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     },
 
     // Profile
-    setProfile: (profile) => { set({ profile }); autoSave(get); },
-    completeOnboarding: () => { set({ onboardingComplete: true }); autoSave(get); },
+    setProfile: (profile) => {
+        set({ profile });
+        // Use immediate save — profile set during onboarding must persist
+        const state = get();
+        if (state._uid) saveToFirestoreImmediate(state._uid, 'aether', getDataSnapshot(state));
+    },
+    completeOnboarding: () => {
+        set({ onboardingComplete: true });
+        // CRITICAL: must save immediately — navigating away would lose the debounced write
+        const state = get();
+        if (state._uid) saveToFirestoreImmediate(state._uid, 'aether', getDataSnapshot(state));
+    },
 
     // Stats
     setHP: (val) => { set({ hp: clamp(val, 0, 100) }); autoSave(get); },
