@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, query, where, limit, startAt, endAt, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, limit, startAt, endAt, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import type { FoodItem } from './foodDatabase';
 
