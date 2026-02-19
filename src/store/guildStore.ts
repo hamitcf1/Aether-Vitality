@@ -45,6 +45,7 @@ interface GuildState {
     // Chat Actions
     subscribeToChat: (guildId: string) => void;
     sendMessage: (content: string) => Promise<void>;
+    clearAllData: () => void;
 }
 
 export const useGuildStore = create<GuildState>((set, get) => ({
@@ -225,6 +226,19 @@ export const useGuildStore = create<GuildState>((set, get) => ({
         } catch (error) {
             console.error("Failed to send message", error);
         }
-    }
+    },
+
+    clearAllData: () => {
+        const unsub = get().unsubscribeChat;
+        if (unsub) unsub();
+        set({
+            userGuild: null,
+            availableGuilds: [],
+            messages: [],
+            loading: false,
+            error: null,
+            unsubscribeChat: null,
+        });
+    },
 }));
 

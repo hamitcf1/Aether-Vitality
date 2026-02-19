@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { getLevelFromXP, ACHIEVEMENTS } from '../lib/achievements';
 import { format } from 'date-fns';
+import { saveToFirestore, loadFromFirestore } from '../lib/firestoreSync';
 
 // ── Types ──
 export interface Quest {
@@ -60,6 +60,9 @@ export interface UserProfile {
 }
 
 interface AetherState {
+    // Internal
+    _uid: string | null;
+
     // Profile
     profile: UserProfile | null;
     onboardingComplete: boolean;
@@ -87,6 +90,9 @@ interface AetherState {
 
     // Loading
     isAILoading: boolean;
+
+    // Actions — Firestore
+    loadData: (uid: string) => Promise<void>;
 
     // Actions — Profile
     setProfile: (profile: UserProfile) => void;
@@ -120,6 +126,7 @@ interface AetherState {
 
     // Actions — Data
     resetProgress: () => void;
+    clearAllData: () => void;
     exportData: () => string;
 }
 
@@ -137,181 +144,235 @@ const DAILY_QUESTS_POOL: Omit<Quest, 'id' | 'completed' | 'progress'>[] = [
     { title: 'Green Elixir', description: 'Eat a vegetable-based meal', type: 'daily', target: 1, rewardXP: 20, icon: '🥗' },
 ];
 
-export const useAetherStore = create<AetherState>()(
-    persist(
-        (set, get) => ({
-            // Initial state
-            profile: null,
-            onboardingComplete: false,
-            hp: 75,
-            mana: 40,
-            xp: 0,
-            level: 1,
-            streak: 0,
-            lastActiveDate: '',
-            mealsLogged: 0,
-            questsCompleted: 0,
-            daysActive: 0,
-            unlockedAchievements: [],
-            quests: [],
-            journal: [],
-            chatHistory: [],
-            mealHistory: [],
-            hpHistory: [],
-            isAILoading: false,
+// Keys to persist to Firestore (exclude actions and internal fields)
+const DATA_KEYS = [
+    'profile', 'onboardingComplete', 'hp', 'mana', 'xp', 'level', 'streak',
+    'lastActiveDate', 'mealsLogged', 'questsCompleted', 'daysActive',
+    'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
+    'hpHistory',
+] as const;
 
-            // Profile
-            setProfile: (profile) => set({ profile }),
-            completeOnboarding: () => set({ onboardingComplete: true }),
+function getDataSnapshot(state: AetherState): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+    for (const key of DATA_KEYS) {
+        data[key] = state[key];
+    }
+    return data;
+}
 
-            // Stats
-            setHP: (val) => set({ hp: clamp(val, 0, 100) }),
-            setMana: (val) => set({ mana: clamp(val, 0, 100) }),
-            addXP: (amount) => {
-                const state = get();
-                const newXP = state.xp + amount;
-                const newLevel = getLevelFromXP(newXP);
-                set({ xp: newXP, level: newLevel });
-            },
-            updateStreak: () => {
-                const state = get();
-                const today = format(new Date(), 'yyyy-MM-dd');
-                if (state.lastActiveDate === today) return;
+/** Auto-save helper — call after any mutation */
+function autoSave(get: () => AetherState) {
+    const state = get();
+    if (state._uid) {
+        saveToFirestore(state._uid, 'aether', getDataSnapshot(state));
+    }
+}
 
-                const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
-                const newStreak = state.lastActiveDate === yesterday ? state.streak + 1 : 1;
-                const newDaysActive = state.daysActive + 1;
+export const useAetherStore = create<AetherState>()((set, get) => ({
+    // Internal
+    _uid: null,
 
-                // Record HP history
-                const newHPHistory = [...state.hpHistory, { date: today, hp: state.hp }].slice(-30);
+    // Initial state
+    profile: null,
+    onboardingComplete: false,
+    hp: 75,
+    mana: 40,
+    xp: 0,
+    level: 1,
+    streak: 0,
+    lastActiveDate: '',
+    mealsLogged: 0,
+    questsCompleted: 0,
+    daysActive: 0,
+    unlockedAchievements: [],
+    quests: [],
+    journal: [],
+    chatHistory: [],
+    mealHistory: [],
+    hpHistory: [],
+    isAILoading: false,
 
-                set({
-                    streak: newStreak,
-                    lastActiveDate: today,
-                    daysActive: newDaysActive,
-                    hpHistory: newHPHistory,
-                });
-            },
-
-            // Logging
-            logMeal: (meal, hpImpact, advice) => {
-                const state = get();
-                const newHP = clamp(state.hp + hpImpact, 0, 100);
-                const newMana = clamp(state.mana + 3, 0, 100);
-                const log: MealLog = { id: uid(), meal, timestamp: Date.now(), hpImpact, advice };
-
-                set({
-                    hp: newHP,
-                    mana: newMana,
-                    mealsLogged: state.mealsLogged + 1,
-                    mealHistory: [log, ...state.mealHistory].slice(0, 100),
-                });
-
-                // Auto XP
-                get().addXP(10 + Math.abs(hpImpact));
-                get().updateStreak();
-            },
-
-            // Quests
-            addQuest: (quest) => set((s) => ({ quests: [...s.quests, quest] })),
-            updateQuestProgress: (questId, progress) => set((s) => ({
-                quests: s.quests.map((q) =>
-                    q.id === questId ? { ...q, progress: Math.min(progress, q.target) } : q
-                ),
-            })),
-            completeQuest: (questId) => {
-                const state = get();
-                const quest = state.quests.find((q) => q.id === questId);
-                if (!quest || quest.completed) return;
-
-                set((s) => ({
-                    quests: s.quests.map((q) => q.id === questId ? { ...q, completed: true, progress: q.target } : q),
-                    questsCompleted: s.questsCompleted + 1,
-                }));
-                get().addXP(quest.rewardXP);
-            },
-            generateDailyQuests: () => {
-                const state = get();
-                const today = format(new Date(), 'yyyy-MM-dd');
-                const hasTodayQuests = state.quests.some((q) => q.type === 'daily' && q.id.startsWith(today));
-                if (hasTodayQuests) return;
-
-                // Pick 3 random daily quests
-                const shuffled = [...DAILY_QUESTS_POOL].sort(() => Math.random() - 0.5);
-                const picked = shuffled.slice(0, 3).map((q) => ({
-                    ...q,
-                    id: `${today}-${uid()}`,
-                    progress: 0,
-                    completed: false,
-                }));
-                set((s) => ({
-                    quests: [...picked, ...s.quests.filter((q) => q.type !== 'daily' || !q.completed)],
-                }));
-            },
-
-            // Journal
-            addJournalEntry: (entry, mood) => {
-                const newEntry: JournalEntry = {
-                    id: uid(),
-                    date: format(new Date(), 'yyyy-MM-dd HH:mm'),
-                    entry,
-                    mood,
-                    hpAtTime: get().hp,
-                };
-                set((s) => ({ journal: [newEntry, ...s.journal].slice(0, 200) }));
-                get().addXP(15);
-            },
-
-            // Chat
-            addChatMessage: (message) => {
-                const newMessage: ChatMessage = { ...message, id: uid(), timestamp: Date.now() };
-                set((s) => ({ chatHistory: [...s.chatHistory, newMessage] }));
-
-                if (message.gameUpdates) {
-                    const u = message.gameUpdates;
-                    if (u.hp) get().setHP(get().hp + u.hp);
-                    if (u.mana) get().setMana(get().mana + u.mana);
-                    if (u.xp) get().addXP(u.xp);
-                }
-            },
-            setAILoading: (isAILoading) => set({ isAILoading }),
-            clearChat: () => set({ chatHistory: [] }),
-
-            // Achievements
-            checkAchievements: () => {
-                const state = get();
-                const stats = {
-                    mealsLogged: state.mealsLogged,
-                    questsCompleted: state.questsCompleted,
-                    daysActive: state.daysActive,
-                    level: state.level,
-                    streak: state.streak,
-                    chatMessages: state.chatHistory.filter((m) => m.role === 'user').length,
-                };
-                const newlyUnlocked: string[] = [];
-                for (const ach of ACHIEVEMENTS) {
-                    if (!state.unlockedAchievements.includes(ach.id) && ach.condition(stats)) {
-                        newlyUnlocked.push(ach.id);
-                    }
-                }
-                if (newlyUnlocked.length > 0) {
-                    set({ unlockedAchievements: [...state.unlockedAchievements, ...newlyUnlocked] });
-                }
-                return newlyUnlocked;
-            },
-
-            // Data
-            resetProgress: () => set({
-                hp: 75, mana: 40, xp: 0, level: 1, streak: 0,
-                mealsLogged: 0, questsCompleted: 0, daysActive: 0,
-                unlockedAchievements: [], quests: [], journal: [],
-                chatHistory: [], mealHistory: [], hpHistory: [],
-                lastActiveDate: '',
-            }),
-            exportData: () => JSON.stringify(get(), null, 2),
-        }),
-        {
-            name: 'aether-vitality-store',
+    // Firestore
+    loadData: async (userUid) => {
+        set({ _uid: userUid });
+        const data = await loadFromFirestore(userUid, 'aether');
+        if (data) {
+            // Only apply known data keys
+            const patch: Record<string, unknown> = {};
+            for (const key of DATA_KEYS) {
+                if (data[key] !== undefined) patch[key] = data[key];
+            }
+            set(patch as Partial<AetherState>);
         }
-    )
-);
+    },
+
+    // Profile
+    setProfile: (profile) => { set({ profile }); autoSave(get); },
+    completeOnboarding: () => { set({ onboardingComplete: true }); autoSave(get); },
+
+    // Stats
+    setHP: (val) => { set({ hp: clamp(val, 0, 100) }); autoSave(get); },
+    setMana: (val) => { set({ mana: clamp(val, 0, 100) }); autoSave(get); },
+    addXP: (amount) => {
+        const state = get();
+        const newXP = state.xp + amount;
+        const newLevel = getLevelFromXP(newXP);
+        set({ xp: newXP, level: newLevel });
+        autoSave(get);
+    },
+    updateStreak: () => {
+        const state = get();
+        const today = format(new Date(), 'yyyy-MM-dd');
+        if (state.lastActiveDate === today) return;
+
+        const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+        const newStreak = state.lastActiveDate === yesterday ? state.streak + 1 : 1;
+        const newDaysActive = state.daysActive + 1;
+
+        // Record HP history
+        const newHPHistory = [...state.hpHistory, { date: today, hp: state.hp }].slice(-30);
+
+        set({
+            streak: newStreak,
+            lastActiveDate: today,
+            daysActive: newDaysActive,
+            hpHistory: newHPHistory,
+        });
+        autoSave(get);
+    },
+
+    // Logging
+    logMeal: (meal, hpImpact, advice) => {
+        const state = get();
+        const newHP = clamp(state.hp + hpImpact, 0, 100);
+        const newMana = clamp(state.mana + 3, 0, 100);
+        const log: MealLog = { id: uid(), meal, timestamp: Date.now(), hpImpact, advice };
+
+        set({
+            hp: newHP,
+            mana: newMana,
+            mealsLogged: state.mealsLogged + 1,
+            mealHistory: [log, ...state.mealHistory].slice(0, 100),
+        });
+
+        // Auto XP
+        get().addXP(10 + Math.abs(hpImpact));
+        get().updateStreak();
+    },
+
+    // Quests
+    addQuest: (quest) => { set((s) => ({ quests: [...s.quests, quest] })); autoSave(get); },
+    updateQuestProgress: (questId, progress) => {
+        set((s) => ({
+            quests: s.quests.map((q) =>
+                q.id === questId ? { ...q, progress: Math.min(progress, q.target) } : q
+            ),
+        }));
+        autoSave(get);
+    },
+    completeQuest: (questId) => {
+        const state = get();
+        const quest = state.quests.find((q) => q.id === questId);
+        if (!quest || quest.completed) return;
+
+        set((s) => ({
+            quests: s.quests.map((q) => q.id === questId ? { ...q, completed: true, progress: q.target } : q),
+            questsCompleted: s.questsCompleted + 1,
+        }));
+        get().addXP(quest.rewardXP);
+    },
+    generateDailyQuests: () => {
+        const state = get();
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const hasTodayQuests = state.quests.some((q) => q.type === 'daily' && q.id.startsWith(today));
+        if (hasTodayQuests) return;
+
+        // Pick 3 random daily quests
+        const shuffled = [...DAILY_QUESTS_POOL].sort(() => Math.random() - 0.5);
+        const picked = shuffled.slice(0, 3).map((q) => ({
+            ...q,
+            id: `${today}-${uid()}`,
+            progress: 0,
+            completed: false,
+        }));
+        set((s) => ({
+            quests: [...picked, ...s.quests.filter((q) => q.type !== 'daily' || !q.completed)],
+        }));
+        autoSave(get);
+    },
+
+    // Journal
+    addJournalEntry: (entry, mood) => {
+        const newEntry: JournalEntry = {
+            id: uid(),
+            date: format(new Date(), 'yyyy-MM-dd HH:mm'),
+            entry,
+            mood,
+            hpAtTime: get().hp,
+        };
+        set((s) => ({ journal: [newEntry, ...s.journal].slice(0, 200) }));
+        get().addXP(15);
+    },
+
+    // Chat
+    addChatMessage: (message) => {
+        const newMessage: ChatMessage = { ...message, id: uid(), timestamp: Date.now() };
+        set((s) => ({ chatHistory: [...s.chatHistory, newMessage] }));
+
+        if (message.gameUpdates) {
+            const u = message.gameUpdates;
+            if (u.hp) get().setHP(get().hp + u.hp);
+            if (u.mana) get().setMana(get().mana + u.mana);
+            if (u.xp) get().addXP(u.xp);
+        }
+        autoSave(get);
+    },
+    setAILoading: (isAILoading) => set({ isAILoading }),
+    clearChat: () => { set({ chatHistory: [] }); autoSave(get); },
+
+    // Achievements
+    checkAchievements: () => {
+        const state = get();
+        const stats = {
+            mealsLogged: state.mealsLogged,
+            questsCompleted: state.questsCompleted,
+            daysActive: state.daysActive,
+            level: state.level,
+            streak: state.streak,
+            chatMessages: state.chatHistory.filter((m) => m.role === 'user').length,
+        };
+        const newlyUnlocked: string[] = [];
+        for (const ach of ACHIEVEMENTS) {
+            if (!state.unlockedAchievements.includes(ach.id) && ach.condition(stats)) {
+                newlyUnlocked.push(ach.id);
+            }
+        }
+        if (newlyUnlocked.length > 0) {
+            set({ unlockedAchievements: [...state.unlockedAchievements, ...newlyUnlocked] });
+            autoSave(get);
+        }
+        return newlyUnlocked;
+    },
+
+    // Data
+    resetProgress: () => {
+        set({
+            hp: 75, mana: 40, xp: 0, level: 1, streak: 0,
+            mealsLogged: 0, questsCompleted: 0, daysActive: 0,
+            unlockedAchievements: [], quests: [], journal: [],
+            chatHistory: [], mealHistory: [], hpHistory: [],
+            lastActiveDate: '',
+        });
+        autoSave(get);
+    },
+    clearAllData: () => set({
+        _uid: null,
+        profile: null, onboardingComplete: false,
+        hp: 75, mana: 40, xp: 0, level: 1, streak: 0,
+        mealsLogged: 0, questsCompleted: 0, daysActive: 0,
+        unlockedAchievements: [], quests: [], journal: [],
+        chatHistory: [], mealHistory: [], hpHistory: [],
+        lastActiveDate: '', isAILoading: false,
+    }),
+    exportData: () => JSON.stringify(get(), null, 2),
+}));

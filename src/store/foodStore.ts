@@ -9,6 +9,7 @@ interface FoodStoreState {
     customFoods: FoodItem[];
     addCustomFood: (food: FoodItem) => void;
     removeCustomFood: (id: string) => void;
+    clearAllData: () => void;
 }
 
 export const useFoodStore = create<FoodStoreState>()(
@@ -19,6 +20,7 @@ export const useFoodStore = create<FoodStoreState>()(
             removeCustomFood: (id) => set((state) => ({
                 customFoods: state.customFoods.filter((f) => f.id !== id),
             })),
+            clearAllData: () => set({ customFoods: [] }),
         }),
         {
             name: 'aether-food-store-deprecated',

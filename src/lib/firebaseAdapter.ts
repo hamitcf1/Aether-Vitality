@@ -1,8 +1,12 @@
 /**
- * Firebase Adapter — localStorage stub
+ * Firebase Adapter — DEPRECATED / DEAD CODE
  * 
- * All methods use localStorage now. When Firebase is ready,
- * swap the implementation to Firestore calls with the same interface.
+ * This adapter is NOT imported or used by any store.
+ * - userStore and guildStore use Firestore directly
+ * - aetherStore, trackersStore, aiStore, journalStore use Zustand persist (localStorage)
+ * - authStore handles Firestore user document creation directly
+ * 
+ * Kept for reference only. Do not rely on this adapter.
  */
 
 const FIREBASE_ENABLED = false;

@@ -17,9 +17,10 @@ interface UserState {
     features: PackageFeatures;
     loading: boolean;
     error: string | null;
+    _unsubscribe: (() => void) | null;
 
     // Actions
-    subscribeToProfile: (uid: string) => () => void;
+    subscribeToProfile: (uid: string) => void;
     updatePackage: (tier: PackageTier) => Promise<void>;
     clearProfile: () => void;
 }
@@ -29,8 +30,13 @@ export const useUserStore = create<UserState>((set, get) => ({
     features: PACKAGES[DEFAULT_PACKAGE],
     loading: false,
     error: null,
+    _unsubscribe: null,
 
     subscribeToProfile: (uid: string) => {
+        // Unsubscribe from any previous listener first
+        const prev = get()._unsubscribe;
+        if (prev) prev();
+
         set({ loading: true });
         const userRef = doc(db, 'users', uid);
 
@@ -53,7 +59,7 @@ export const useUserStore = create<UserState>((set, get) => ({
             set({ loading: false, error: error.message });
         });
 
-        return unsubscribe;
+        set({ _unsubscribe: unsubscribe });
     },
 
     updatePackage: async (tier: PackageTier) => {
@@ -71,11 +77,16 @@ export const useUserStore = create<UserState>((set, get) => ({
     },
 
     clearProfile: () => {
+        // Unsubscribe from Firestore listener
+        const unsub = get()._unsubscribe;
+        if (unsub) unsub();
+
         set({
             profile: null,
             features: PACKAGES[DEFAULT_PACKAGE],
             loading: false,
-            error: null
+            error: null,
+            _unsubscribe: null
         });
     }
 }));

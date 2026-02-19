@@ -52,7 +52,26 @@ export const useAuthStore = create<AuthState>((set) => ({
         try {
             const cred = await createUserWithEmailAndPassword(auth, email, password);
             await updateProfile(cred.user, { displayName });
+
+            // Create Firestore user document
+            const { doc, setDoc } = await import('firebase/firestore');
+            const { db } = await import('../lib/firebase');
+            await setDoc(doc(db, 'users', cred.user.uid), {
+                uid: cred.user.uid,
+                email: cred.user.email,
+                displayName,
+                photoURL: cred.user.photoURL || '',
+                createdAt: Date.now(),
+                healthGoal: 'liver',
+                difficulty: 'casual',
+            });
+
             set({ user: cred.user, loading: false });
+
+            // Subscribe to user profile
+            const { useUserStore } = await import('./userStore');
+            useUserStore.getState().subscribeToProfile(cred.user.uid);
+
             return true;
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Registration failed';
@@ -109,12 +128,32 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     signOut: async () => {
         set({ loading: true });
-        await firebaseSignOut(auth);
 
-        // Clear user profile
+        // Flush any pending debounced saves
+        const { flushPendingSaves } = await import('../lib/firestoreSync');
+        flushPendingSaves();
+
+        // Clear ALL stores before signing out
         const { useUserStore } = await import('./userStore');
+        const { useAetherStore } = await import('./aetherStore');
+        const { useTrackersStore } = await import('./trackersStore');
+        const { useAIStore } = await import('./aiStore');
+        const { useJournalStore } = await import('./journalStore');
+        const { useFoodStore } = await import('./foodStore');
+        const { useGuildStore } = await import('./guildStore');
+
+        // Clear user profile (also unsubscribes Firestore listener)
         useUserStore.getState().clearProfile();
 
+        // Clear all stores
+        useAetherStore.getState().clearAllData();
+        useTrackersStore.getState().clearAllData();
+        useAIStore.getState().clearAllData();
+        useJournalStore.getState().clearAllData();
+        useFoodStore.getState().clearAllData();
+        useGuildStore.getState().clearAllData();
+
+        await firebaseSignOut(auth);
         set({ user: null, loading: false });
     },
 
@@ -123,9 +162,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     initAuthListener: () => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
+                // Load all Firestore-backed stores
                 const { useUserStore } = await import('./userStore');
+                const { useAetherStore } = await import('./aetherStore');
+                const { useTrackersStore } = await import('./trackersStore');
+                const { useAIStore } = await import('./aiStore');
+                const { useJournalStore } = await import('./journalStore');
+
                 useUserStore.getState().subscribeToProfile(user.uid);
+                useAetherStore.getState().loadData(user.uid);
+                useTrackersStore.getState().loadData(user.uid);
+                useAIStore.getState().loadData(user.uid);
+                useJournalStore.getState().loadData(user.uid);
             } else {
+                // User logged out — clear user profile (listener is cleaned via clearProfile)
                 const { useUserStore } = await import('./userStore');
                 useUserStore.getState().clearProfile();
             }

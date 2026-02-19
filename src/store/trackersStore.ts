@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { format } from 'date-fns';
 import type { Gender, ActivityLevel } from '../lib/calorieCalculator';
+import { saveToFirestore, loadFromFirestore } from '../lib/firestoreSync';
 
 // ── Types ──
 export interface DailyWaterLog {
@@ -64,6 +64,9 @@ export interface UnlockableItem {
 }
 
 interface TrackersState {
+    // Internal
+    _uid: string | null;
+
     // Body
     bodyProfile: BodyProfile | null;
     setBodyProfile: (profile: BodyProfile) => void;
@@ -113,6 +116,10 @@ interface TrackersState {
     removeSteps: (steps: number) => void;
     removeSugar: (grams: number) => void;
     removeFood: (foodId: string) => void;
+
+    // Firestore
+    loadData: (uid: string) => Promise<void>;
+    clearAllData: () => void;
 }
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
@@ -135,292 +142,353 @@ const DEFAULT_UNLOCKABLES: UnlockableItem[] = [
     { id: 'perfect_day', title: 'Perfect Day', description: 'Hit all tracker goals in one day', icon: '💯', type: 'badge', requirement: 'perfect_day', unlocked: false },
 ];
 
-export const useTrackersStore = create<TrackersState>()(
-    persist(
-        (set, get) => ({
-            bodyProfile: null,
-            waterLogs: [],
-            stepsLogs: [],
-            sugarLogs: [],
-            calorieLogs: [],
-            weightLog: [],
+// Keys to persist to Firestore
+const DATA_KEYS = [
+    'bodyProfile', 'waterLogs', 'stepsLogs', 'sugarLogs', 'calorieLogs',
+    'weightLog', 'fasting', 'unlockables',
+] as const;
+
+function getDataSnapshot(state: TrackersState): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+    for (const key of DATA_KEYS) { data[key] = state[key]; }
+    return data;
+}
+
+function autoSave(get: () => TrackersState) {
+    const state = get();
+    if (state._uid) saveToFirestore(state._uid, 'trackers', getDataSnapshot(state));
+}
+
+export const useTrackersStore = create<TrackersState>()((set, get) => ({
+    _uid: null,
+    bodyProfile: null,
+    waterLogs: [],
+    stepsLogs: [],
+    sugarLogs: [],
+    calorieLogs: [],
+    weightLog: [],
+    fasting: {
+        active: false,
+        startTime: null,
+        endTime: null,
+        plan: '16:8',
+        totalFastsCompleted: 0,
+        history: [],
+    },
+    unlockables: DEFAULT_UNLOCKABLES,
+
+    // Firestore
+    loadData: async (userUid) => {
+        set({ _uid: userUid });
+        const data = await loadFromFirestore(userUid, 'trackers');
+        if (data) {
+            const patch: Record<string, unknown> = {};
+            for (const key of DATA_KEYS) {
+                if (data[key] !== undefined) patch[key] = data[key];
+            }
+            set(patch as Partial<TrackersState>);
+        }
+    },
+
+    // Body
+    setBodyProfile: (profile) => { set({ bodyProfile: profile }); autoSave(get); },
+
+    // Water
+    addWater: (glasses = 1) => {
+        const d = today();
+        const logs = [...get().waterLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], glasses: logs[idx].glasses + glasses };
+        } else {
+            logs.push({ date: d, glasses, target: 8 });
+        }
+        set({ waterLogs: logs.slice(-90) });
+        autoSave(get);
+    },
+    setWaterTarget: (target) => {
+        const d = today();
+        const logs = [...get().waterLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], target };
+        } else {
+            logs.push({ date: d, glasses: 0, target });
+        }
+        set({ waterLogs: logs });
+        autoSave(get);
+    },
+    removeWater: (glasses = 1) => {
+        const d = today();
+        const logs = [...get().waterLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], glasses: Math.max(0, logs[idx].glasses - glasses) };
+            set({ waterLogs: logs });
+            autoSave(get);
+        }
+    },
+
+    // Steps
+    addSteps: (steps) => {
+        const d = today();
+        const logs = [...get().stepsLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], steps: logs[idx].steps + steps };
+        } else {
+            logs.push({ date: d, steps, target: 10000 });
+        }
+        set({ stepsLogs: logs.slice(-90) });
+        autoSave(get);
+    },
+    setStepsTarget: (target) => {
+        const d = today();
+        const logs = [...get().stepsLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], target };
+        } else {
+            logs.push({ date: d, steps: 0, target });
+        }
+        set({ stepsLogs: logs });
+        autoSave(get);
+    },
+    removeSteps: (steps) => {
+        const d = today();
+        const logs = [...get().stepsLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], steps: Math.max(0, logs[idx].steps - steps) };
+            set({ stepsLogs: logs });
+            autoSave(get);
+        }
+    },
+
+    // Sugar
+    addSugar: (grams) => {
+        const d = today();
+        const logs = [...get().sugarLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], grams: logs[idx].grams + grams };
+        } else {
+            logs.push({ date: d, grams, target: 25 });
+        }
+        set({ sugarLogs: logs.slice(-90) });
+        autoSave(get);
+    },
+    setSugarTarget: (target) => {
+        const d = today();
+        const logs = [...get().sugarLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], target };
+        } else {
+            logs.push({ date: d, grams: 0, target });
+        }
+        set({ sugarLogs: logs });
+        autoSave(get);
+    },
+    removeSugar: (grams) => {
+        const d = today();
+        const logs = [...get().sugarLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], grams: Math.max(0, logs[idx].grams - grams) };
+            set({ sugarLogs: logs });
+            autoSave(get);
+        }
+    },
+
+    // Calories
+    addFood: (food) => {
+        const d = today();
+        const logs = [...get().calorieLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        const entry = { ...food, time: Date.now() };
+        if (idx >= 0) {
+            logs[idx] = {
+                ...logs[idx],
+                consumed: logs[idx].consumed + food.calories * food.servings,
+                foods: [...logs[idx].foods, entry],
+            };
+        } else {
+            logs.push({ date: d, consumed: food.calories * food.servings, burned: 0, target: 2000, foods: [entry] });
+        }
+        set({ calorieLogs: logs.slice(-90) });
+        // Also add sugar
+        if (food.sugar > 0) {
+            get().addSugar(Math.round(food.sugar * food.servings));
+        }
+        autoSave(get);
+    },
+    setCalorieTarget: (target) => {
+        const d = today();
+        const logs = [...get().calorieLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            logs[idx] = { ...logs[idx], target };
+        } else {
+            logs.push({ date: d, consumed: 0, burned: 0, target, foods: [] });
+        }
+        set({ calorieLogs: logs });
+        autoSave(get);
+    },
+    removeFood: (foodId) => {
+        const d = today();
+        const logs = [...get().calorieLogs];
+        const idx = logs.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            const food = logs[idx].foods.find((f) => f.foodId === foodId);
+            if (food) {
+                const consumed = logs[idx].consumed - (food.calories * food.servings);
+                const foods = logs[idx].foods.filter((f) => f.foodId !== foodId);
+                logs[idx] = { ...logs[idx], consumed: Math.max(0, consumed), foods };
+                set({ calorieLogs: logs });
+
+                // Also remove sugar if applicable
+                if (food.sugar > 0) {
+                    get().removeSugar(Math.round(food.sugar * food.servings));
+                }
+                autoSave(get);
+            }
+        }
+    },
+
+    // Weight
+    logWeight: (weightKg) => {
+        const d = today();
+        const log = [...get().weightLog];
+        const idx = log.findIndex((l) => l.date === d);
+        if (idx >= 0) {
+            log[idx] = { date: d, weightKg };
+        } else {
+            log.push({ date: d, weightKg });
+        }
+        set({ weightLog: log.slice(-365) });
+        // Update body profile weight
+        const bp = get().bodyProfile;
+        if (bp) set({ bodyProfile: { ...bp, weightKg } });
+        autoSave(get);
+    },
+
+    // Fasting
+    startFast: () => {
+        set({
+            fasting: { ...get().fasting, active: true, startTime: Date.now(), endTime: null },
+        });
+        autoSave(get);
+    },
+    endFast: () => {
+        const f = get().fasting;
+        if (!f.active || !f.startTime) return;
+        const durationHrs = Math.round((Date.now() - f.startTime) / 3600000 * 10) / 10;
+        set({
             fasting: {
+                ...f,
                 active: false,
                 startTime: null,
-                endTime: null,
-                plan: '16:8',
-                totalFastsCompleted: 0,
-                history: [],
+                endTime: Date.now(),
+                totalFastsCompleted: f.totalFastsCompleted + 1,
+                history: [...f.history, { date: today(), durationHrs, plan: f.plan }].slice(-90),
             },
-            unlockables: DEFAULT_UNLOCKABLES,
+        });
+        autoSave(get);
+    },
+    setFastingPlan: (plan) => { set({ fasting: { ...get().fasting, plan } }); autoSave(get); },
 
-            // Body
-            setBodyProfile: (profile) => set({ bodyProfile: profile }),
+    // Unlockables
+    checkUnlockables: () => {
+        const state = get();
+        const waterDays = state.waterLogs.filter((l) => l.glasses >= l.target).length;
+        const totalSteps = state.stepsLogs.reduce((s, l) => s + l.steps, 0);
+        const maxStepsDay = Math.max(0, ...state.stepsLogs.map((l) => l.steps));
+        const calorieDays = state.calorieLogs.filter((l) => l.foods.length > 0).length;
+        const sugarGoodDays = state.sugarLogs.filter((l) => l.grams <= l.target).length;
+        const d = today();
+        const todayHasAll =
+            state.waterLogs.some((l) => l.date === d && l.glasses > 0) &&
+            state.stepsLogs.some((l) => l.date === d && l.steps > 0) &&
+            state.calorieLogs.some((l) => l.date === d && l.foods.length > 0);
 
-            // Water
-            addWater: (glasses = 1) => {
-                const d = today();
-                const logs = [...get().waterLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], glasses: logs[idx].glasses + glasses };
-                } else {
-                    logs.push({ date: d, glasses, target: 8 });
-                }
-                set({ waterLogs: logs.slice(-90) });
-            },
-            setWaterTarget: (target) => {
-                const d = today();
-                const logs = [...get().waterLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], target };
-                } else {
-                    logs.push({ date: d, glasses: 0, target });
-                }
-                set({ waterLogs: logs });
-            },
-            removeWater: (glasses = 1) => {
-                const d = today();
-                const logs = [...get().waterLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], glasses: Math.max(0, logs[idx].glasses - glasses) };
-                    set({ waterLogs: logs });
-                }
-            },
+        const todayWater = state.waterLogs.find((l) => l.date === d);
+        const todaySteps = state.stepsLogs.find((l) => l.date === d);
+        const todayCals = state.calorieLogs.find((l) => l.date === d);
+        const todaySugar = state.sugarLogs.find((l) => l.date === d);
+        const perfectDay =
+            (todayWater ? todayWater.glasses >= todayWater.target : false) &&
+            (todaySteps ? todaySteps.steps >= todaySteps.target : false) &&
+            (todayCals ? todayCals.consumed <= todayCals.target && todayCals.consumed > 0 : false) &&
+            (todaySugar ? todaySugar.grams <= todaySugar.target && todaySugar.grams > 0 : false);
 
-            // Steps
-            addSteps: (steps) => {
-                const d = today();
-                const logs = [...get().stepsLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], steps: logs[idx].steps + steps };
-                } else {
-                    logs.push({ date: d, steps, target: 10000 });
-                }
-                set({ stepsLogs: logs.slice(-90) });
-            },
-            setStepsTarget: (target) => {
-                const d = today();
-                const logs = [...get().stepsLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], target };
-                } else {
-                    logs.push({ date: d, steps: 0, target });
-                }
-                set({ stepsLogs: logs });
-            },
-            removeSteps: (steps) => {
-                const d = today();
-                const logs = [...get().stepsLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], steps: Math.max(0, logs[idx].steps - steps) };
-                    set({ stepsLogs: logs });
-                }
-            },
+        const checks: Record<string, boolean> = {
+            water_3: waterDays >= 3,
+            water_30: waterDays >= 30,
+            steps_10k: maxStepsDay >= 10000,
+            steps_50k: totalSteps >= 50000,
+            calories_7: calorieDays >= 7,
+            sugar_7: sugarGoodDays >= 7,
+            fast_3: state.fasting.totalFastsCompleted >= 3,
+            fast_14: state.fasting.totalFastsCompleted >= 14,
+            weight_14: state.weightLog.length >= 14,
+            weight_60: state.weightLog.length >= 60,
+            all_trackers_day: todayHasAll,
+            perfect_day: perfectDay,
+        };
 
-            // Sugar
-            addSugar: (grams) => {
-                const d = today();
-                const logs = [...get().sugarLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], grams: logs[idx].grams + grams };
-                } else {
-                    logs.push({ date: d, grams, target: 25 });
-                }
-                set({ sugarLogs: logs.slice(-90) });
-            },
-            setSugarTarget: (target) => {
-                const d = today();
-                const logs = [...get().sugarLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], target };
-                } else {
-                    logs.push({ date: d, grams: 0, target });
-                }
-                set({ sugarLogs: logs });
-            },
-            removeSugar: (grams) => {
-                const d = today();
-                const logs = [...get().sugarLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], grams: Math.max(0, logs[idx].grams - grams) };
-                    set({ sugarLogs: logs });
-                }
-            },
+        const newlyUnlocked: string[] = [];
+        const updated = state.unlockables.map((item) => {
+            if (item.unlocked) return item;
+            const req = item.requirement;
+            if (checks[req]) {
+                newlyUnlocked.push(item.id);
+                return { ...item, unlocked: true };
+            }
+            return item;
+        });
 
-            // Calories
-            addFood: (food) => {
-                const d = today();
-                const logs = [...get().calorieLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                const entry = { ...food, time: Date.now() };
-                if (idx >= 0) {
-                    logs[idx] = {
-                        ...logs[idx],
-                        consumed: logs[idx].consumed + food.calories * food.servings,
-                        foods: [...logs[idx].foods, entry],
-                    };
-                } else {
-                    logs.push({ date: d, consumed: food.calories * food.servings, burned: 0, target: 2000, foods: [entry] });
-                }
-                set({ calorieLogs: logs.slice(-90) });
-                // Also add sugar
-                if (food.sugar > 0) {
-                    get().addSugar(Math.round(food.sugar * food.servings));
-                }
-            },
-            setCalorieTarget: (target) => {
-                const d = today();
-                const logs = [...get().calorieLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    logs[idx] = { ...logs[idx], target };
-                } else {
-                    logs.push({ date: d, consumed: 0, burned: 0, target, foods: [] });
-                }
-                set({ calorieLogs: logs });
-            },
-            removeFood: (foodId) => {
-                const d = today();
-                const logs = [...get().calorieLogs];
-                const idx = logs.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    const food = logs[idx].foods.find((f) => f.foodId === foodId);
-                    if (food) {
-                        const consumed = logs[idx].consumed - (food.calories * food.servings);
-                        const foods = logs[idx].foods.filter((f) => f.foodId !== foodId);
-                        logs[idx] = { ...logs[idx], consumed: Math.max(0, consumed), foods };
-                        set({ calorieLogs: logs });
+        if (newlyUnlocked.length > 0) {
+            set({ unlockables: updated });
+            autoSave(get);
+        }
+        return newlyUnlocked;
+    },
 
-                        // Also remove sugar if applicable
-                        if (food.sugar > 0) {
-                            get().removeSugar(Math.round(food.sugar * food.servings));
-                        }
-                    }
-                }
-            },
+    // Helpers
+    getTodayWater: () => {
+        const d = today();
+        return get().waterLogs.find((l) => l.date === d) || { date: d, glasses: 0, target: 8 };
+    },
+    getTodaySteps: () => {
+        const d = today();
+        return get().stepsLogs.find((l) => l.date === d) || { date: d, steps: 0, target: 10000 };
+    },
+    getTodaySugar: () => {
+        const d = today();
+        return get().sugarLogs.find((l) => l.date === d) || { date: d, grams: 0, target: 25 };
+    },
+    getTodayCalories: () => {
+        const d = today();
+        return get().calorieLogs.find((l) => l.date === d) || { date: d, consumed: 0, burned: 0, target: 2000, foods: [] };
+    },
 
-            // Weight
-            logWeight: (weightKg) => {
-                const d = today();
-                const log = [...get().weightLog];
-                const idx = log.findIndex((l) => l.date === d);
-                if (idx >= 0) {
-                    log[idx] = { date: d, weightKg };
-                } else {
-                    log.push({ date: d, weightKg });
-                }
-                set({ weightLog: log.slice(-365) });
-                // Update body profile weight
-                const bp = get().bodyProfile;
-                if (bp) set({ bodyProfile: { ...bp, weightKg } });
-            },
-
-            // Fasting
-            startFast: () => {
-                set({
-                    fasting: { ...get().fasting, active: true, startTime: Date.now(), endTime: null },
-                });
-            },
-            endFast: () => {
-                const f = get().fasting;
-                if (!f.active || !f.startTime) return;
-                const durationHrs = Math.round((Date.now() - f.startTime) / 3600000 * 10) / 10;
-                set({
-                    fasting: {
-                        ...f,
-                        active: false,
-                        startTime: null,
-                        endTime: Date.now(),
-                        totalFastsCompleted: f.totalFastsCompleted + 1,
-                        history: [...f.history, { date: today(), durationHrs, plan: f.plan }].slice(-90),
-                    },
-                });
-            },
-            setFastingPlan: (plan) => set({ fasting: { ...get().fasting, plan } }),
-
-            // Unlockables
-            checkUnlockables: () => {
-                const state = get();
-                const waterDays = state.waterLogs.filter((l) => l.glasses >= l.target).length;
-                const totalSteps = state.stepsLogs.reduce((s, l) => s + l.steps, 0);
-                const maxStepsDay = Math.max(0, ...state.stepsLogs.map((l) => l.steps));
-                const calorieDays = state.calorieLogs.filter((l) => l.foods.length > 0).length;
-                const sugarGoodDays = state.sugarLogs.filter((l) => l.grams <= l.target).length;
-                const d = today();
-                const todayHasAll =
-                    state.waterLogs.some((l) => l.date === d && l.glasses > 0) &&
-                    state.stepsLogs.some((l) => l.date === d && l.steps > 0) &&
-                    state.calorieLogs.some((l) => l.date === d && l.foods.length > 0);
-
-                const todayWater = state.waterLogs.find((l) => l.date === d);
-                const todaySteps = state.stepsLogs.find((l) => l.date === d);
-                const todayCals = state.calorieLogs.find((l) => l.date === d);
-                const todaySugar = state.sugarLogs.find((l) => l.date === d);
-                const perfectDay =
-                    (todayWater ? todayWater.glasses >= todayWater.target : false) &&
-                    (todaySteps ? todaySteps.steps >= todaySteps.target : false) &&
-                    (todayCals ? todayCals.consumed <= todayCals.target && todayCals.consumed > 0 : false) &&
-                    (todaySugar ? todaySugar.grams <= todaySugar.target && todaySugar.grams > 0 : false);
-
-                const checks: Record<string, boolean> = {
-                    water_3: waterDays >= 3,
-                    water_30: waterDays >= 30,
-                    steps_10k: maxStepsDay >= 10000,
-                    steps_50k: totalSteps >= 50000,
-                    calories_7: calorieDays >= 7,
-                    sugar_7: sugarGoodDays >= 7,
-                    fast_3: state.fasting.totalFastsCompleted >= 3,
-                    fast_14: state.fasting.totalFastsCompleted >= 14,
-                    weight_14: state.weightLog.length >= 14,
-                    weight_60: state.weightLog.length >= 60,
-                    all_trackers_day: todayHasAll,
-                    perfect_day: perfectDay,
-                };
-
-                const newlyUnlocked: string[] = [];
-                const updated = state.unlockables.map((item) => {
-                    if (item.unlocked) return item;
-                    const req = item.requirement;
-                    if (checks[req]) {
-                        newlyUnlocked.push(item.id);
-                        return { ...item, unlocked: true };
-                    }
-                    return item;
-                });
-
-                if (newlyUnlocked.length > 0) {
-                    set({ unlockables: updated });
-                }
-                return newlyUnlocked;
-            },
-
-            // Helpers
-            getTodayWater: () => {
-                const d = today();
-                return get().waterLogs.find((l) => l.date === d) || { date: d, glasses: 0, target: 8 };
-            },
-            getTodaySteps: () => {
-                const d = today();
-                return get().stepsLogs.find((l) => l.date === d) || { date: d, steps: 0, target: 10000 };
-            },
-            getTodaySugar: () => {
-                const d = today();
-                return get().sugarLogs.find((l) => l.date === d) || { date: d, grams: 0, target: 25 };
-            },
-            getTodayCalories: () => {
-                const d = today();
-                return get().calorieLogs.find((l) => l.date === d) || { date: d, consumed: 0, burned: 0, target: 2000, foods: [] };
-            },
-        }),
-        { name: 'aether-trackers-store' }
-    )
-);
+    clearAllData: () => set({
+        _uid: null,
+        bodyProfile: null,
+        waterLogs: [],
+        stepsLogs: [],
+        sugarLogs: [],
+        calorieLogs: [],
+        weightLog: [],
+        fasting: {
+            active: false,
+            startTime: null,
+            endTime: null,
+            plan: '16:8',
+            totalFastsCompleted: 0,
+            history: [],
+        },
+        unlockables: DEFAULT_UNLOCKABLES,
+    }),
+}));
