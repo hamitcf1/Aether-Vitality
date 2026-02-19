@@ -150,7 +150,18 @@ export function PricingPage() {
                                     ? 'bg-emerald-500 hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 text-white'
                                     : 'bg-white/5 hover:bg-white/10 text-white'
                                     }`}
-                                onClick={() => navigate(plan.id === 'novice' ? '/register' : '/contact')}
+                                onClick={() => {
+                                    if (plan.id === 'novice') {
+                                        navigate('/register');
+                                    } else if (plan.id === 'master') {
+                                        const link = billingCycle === 'monthly'
+                                            ? 'https://buy.stripe.com/test_fZu9AUabz3mA64f7IR5EY00'
+                                            : 'https://buy.stripe.com/test_6oU7sM0AZ3mA78j3sB5EY01';
+                                        window.location.href = link;
+                                    } else {
+                                        navigate('/contact');
+                                    }
+                                }}
                             >
                                 {plan.buttonText}
                             </button>
@@ -158,6 +169,6 @@ export function PricingPage() {
                     ))}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

@@ -17,6 +17,7 @@ const TermsPage = lazy(() => import('./pages/TermsPage').then(module => ({ defau
 const ContactPage = lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const PricingPage = lazy(() => import('./pages/PricingPage').then(module => ({ default: module.PricingPage })));
 import { PublicLayout } from './components/layout/PublicLayout';
+import { Restricted } from './components/auth/Restricted';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
 const TrackersPage = lazy(() => import('./pages/TrackersPage').then(module => ({ default: module.TrackersPage })));
@@ -98,9 +99,24 @@ const App: React.FC = () => {
           <Route element={user ? <DashboardLayout /> : <Navigate to="/login" replace />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/trackers" element={<TrackersPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/gaming" element={<GamingPage />} />
-            <Route path="/chat" element={<ChatPage />} />
+
+            {/* Premium Features */}
+            <Route path="/reports" element={
+              <Restricted feature="canAccessReports">
+                <ReportsPage />
+              </Restricted>
+            } />
+            <Route path="/gaming" element={
+              <Restricted feature="canAccessGamification">
+                <GamingPage />
+              </Restricted>
+            } />
+            <Route path="/chat" element={
+              <Restricted feature="canAccessAI">
+                <ChatPage />
+              </Restricted>
+            } />
+
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/meditation" element={<MeditationPage />} />
             <Route path="/profile" element={<ProfilePage />} />

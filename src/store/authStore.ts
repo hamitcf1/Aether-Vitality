@@ -88,6 +88,11 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
 
             set({ loading: false });
+
+            // Subscribe to user profile
+            const { useUserStore } = await import('./userStore');
+            useUserStore.getState().subscribeToProfile(user.uid);
+
             return true;
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Google sign-in failed';
@@ -105,13 +110,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     signOut: async () => {
         set({ loading: true });
         await firebaseSignOut(auth);
+
+        // Clear user profile
+        const { useUserStore } = await import('./userStore');
+        useUserStore.getState().clearProfile();
+
         set({ user: null, loading: false });
     },
 
     clearError: () => set({ error: null }),
 
     initAuthListener: () => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const { useUserStore } = await import('./userStore');
+                useUserStore.getState().subscribeToProfile(user.uid);
+            } else {
+                const { useUserStore } = await import('./userStore');
+                useUserStore.getState().clearProfile();
+            }
             set({ user, loading: false, initialized: true });
         });
         return unsubscribe;

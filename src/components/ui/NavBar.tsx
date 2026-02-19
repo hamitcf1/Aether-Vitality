@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { useUserStore } from '../../store/userStore';
 
 const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -35,19 +36,36 @@ export const NavBar: React.FC = () => {
 
                     {/* Nav links */}
                     <nav className="flex flex-col gap-1 flex-1">
-                        {navItems.map((item) => (
-                            <NavLink
-                                key={item.path}
-                                to={item.path}
-                                className={cn(
-                                    'nav-item',
-                                    location.pathname === item.path && 'nav-item-active'
-                                )}
-                            >
-                                <item.icon className="w-5 h-5" />
-                                <span className="text-sm font-medium">{item.label}</span>
-                            </NavLink>
-                        ))}
+                        {navItems.map((item) => {
+                            // Check access
+                            const { features } = useUserStore();
+                            const isLocked =
+                                (item.path === '/chat' && !features.canAccessAI) ||
+                                (item.path === '/reports' && !features.canAccessReports) ||
+                                (item.path === '/gaming' && !features.canAccessGamification);
+
+                            return (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    className={cn(
+                                        'nav-item',
+                                        location.pathname === item.path && 'nav-item-active',
+                                        isLocked && 'opacity-50 grayscale'
+                                    )}
+                                >
+                                    <div className="relative">
+                                        <item.icon className="w-5 h-5" />
+                                        {isLocked && (
+                                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gray-500 rounded-full flex items-center justify-center border border-[#060714]">
+                                                <div className="w-1.5 h-1.5 text-white">🔒</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className="text-sm font-medium">{item.label}</span>
+                                </NavLink>
+                            );
+                        })}
                     </nav>
 
                     {/* Version */}
@@ -58,21 +76,21 @@ export const NavBar: React.FC = () => {
             </aside>
 
             {/* Mobile bottom bar */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3">
-                <div className="glass rounded-2xl flex items-center justify-around px-2 py-2">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-gradient-to-t from-[#060714] to-transparent">
+                <div className="glass rounded-2xl flex items-center gap-2 px-2 py-2 overflow-x-auto no-scrollbar snap-x snap-mandatory">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
-                            className={cn(
-                                'flex flex-col items-center gap-1 px-5 py-2 rounded-xl transition-all duration-200',
-                                location.pathname === item.path
+                            className={({ isActive }) => cn(
+                                'flex flex-col items-center gap-1 min-w-[72px] px-2 py-2 rounded-xl transition-all duration-200 snap-center shrink-0',
+                                isActive
                                     ? 'text-brand-emerald bg-brand-emerald/10'
                                     : 'text-gray-600 hover:text-gray-400'
                             )}
                         >
                             <item.icon className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">{item.label}</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap">{item.label}</span>
                         </NavLink>
                     ))}
                 </div>
