@@ -18,6 +18,8 @@ import { calculateBMI, getHealthyWeightRange } from '../lib/bmiCalculator';
 import { getCaloriePlan } from '../lib/calorieCalculator';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar } from 'recharts';
 import type { FoodItem } from '../lib/foodDatabase';
+import { SleepTracker } from '../components/trackers/SleepTracker';
+import { BodyMetrics } from '../components/trackers/BodyMetrics';
 
 const TABS = [
     { id: 'water', label: 'Water', emoji: '💧' },
@@ -28,6 +30,8 @@ const TABS = [
     { id: 'sugar', label: 'Sugar', emoji: '🍬' },
     { id: 'weight', label: 'Weight', emoji: '⚖️' },
     { id: 'fasting', label: 'Fasting', emoji: '⏰' },
+    { id: 'sleep', label: 'Sleep', emoji: '😴' },
+    { id: 'body', label: 'Body', emoji: '📏' },
 ];
 
 export const TrackersPage: React.FC = () => {
@@ -58,6 +62,8 @@ export const TrackersPage: React.FC = () => {
                     {activeTab === 'sugar' && <SugarTracker />}
                     {activeTab === 'weight' && <WeightTracker />}
                     {activeTab === 'fasting' && <FastingTracker />}
+                    {activeTab === 'sleep' && <SleepTracker />}
+                    {activeTab === 'body' && <BodyMetrics />}
                 </motion.div>
             </AnimatePresence>
         </PageTransition>

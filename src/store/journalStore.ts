@@ -7,6 +7,9 @@ export interface JournalEntry {
     content: string;
     mood: 'great' | 'good' | 'neutral' | 'bad' | 'terrible';
     tags: string[];
+    factors?: string[]; // e.g. Work, Family, Sleep, Diet
+    sleepQuality?: number; // 0-100, synced from Sleep Log or manually entered
+    productivity?: number; // 1-5
 }
 
 export interface MeditationSession {

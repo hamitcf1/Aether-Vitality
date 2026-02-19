@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { getLevelFromXP, ACHIEVEMENTS } from '../lib/achievements';
 import { format } from 'date-fns';
 import { saveToFirestore, saveToFirestoreImmediate, loadFromFirestore } from '../lib/firestoreSync';
+import { SHOP_ITEMS } from '../lib/ShopData';
 
 // ── Types ──
 export interface Quest {
@@ -57,6 +58,19 @@ export interface UserProfile {
     gender?: 'male' | 'female';
     activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
     targetWeightKg?: number;
+    guildId?: string;
+}
+
+export interface EquippedItems {
+    theme: string;
+    frame: string;
+}
+
+export interface ActiveBoost {
+    id: string;
+    expiresAt: number;
+    multiplier: number;
+    type: 'xp' | 'coin';
 }
 
 interface AetherState {
@@ -80,6 +94,10 @@ interface AetherState {
     questsCompleted: number;
     daysActive: number;
     unlockedAchievements: string[];
+    coins: number;
+    inventory: string[];
+    equipped: EquippedItems;
+    activeBoosts: ActiveBoost[];
 
     // Data
     quests: Quest[];
@@ -128,6 +146,12 @@ interface AetherState {
     resetProgress: () => void;
     clearAllData: () => void;
     exportData: () => string;
+
+    // Actions — Economy
+    addCoins: (amount: number) => void;
+    purchaseItem: (itemId: string) => boolean;
+    equipItem: (itemId: string, category: 'theme' | 'frame') => void;
+    checkBoosts: () => void;
 }
 
 const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
@@ -149,7 +173,8 @@ const DATA_KEYS = [
     'profile', 'onboardingComplete', 'hp', 'mana', 'xp', 'level', 'streak',
     'lastActiveDate', 'mealsLogged', 'questsCompleted', 'daysActive',
     'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
-    'hpHistory',
+    'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
+    'hpHistory', 'coins', 'inventory', 'equipped', 'activeBoosts',
 ] as const;
 
 function getDataSnapshot(state: AetherState): Record<string, unknown> {
@@ -191,6 +216,10 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     mealHistory: [],
     hpHistory: [],
     isAILoading: false,
+    coins: 0,
+    inventory: [],
+    equipped: { theme: 'default', frame: 'none' },
+    activeBoosts: [],
 
     // Firestore
     loadData: async (userUid) => {
@@ -202,6 +231,18 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
             for (const key of DATA_KEYS) {
                 if (data[key] !== undefined) patch[key] = data[key];
             }
+
+            // Backfill coins for legacy users
+            // If xp > 0 but coins is undefined (or 0 and not explicitly set to 0? tricky. Assume undefined means new feature)
+            // But Firestore load returns existing data. If coins is missing there, it's undefined.
+            // Let's use a safe check: if coins is undefined in valid data, backfill.
+            const currentXP = (data.xp as number) || 0;
+            if (data.coins === undefined && currentXP > 0) {
+                patch.coins = Math.floor(currentXP * 0.5);
+                patch.inventory = [];
+                patch.equipped = { theme: 'default', frame: 'none' };
+            }
+
             set(patch as Partial<AetherState>);
         }
     },
@@ -225,10 +266,21 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     setMana: (val) => { set({ mana: clamp(val, 0, 100) }); autoSave(get); },
     addXP: (amount) => {
         const state = get();
-        const newXP = state.xp + amount;
+
+        // Check for active XP boosts
+        const xpBoost = state.activeBoosts.find(b => b.type === 'xp' && b.expiresAt > Date.now());
+        const finalXP = xpBoost ? amount * xpBoost.multiplier : amount;
+
+        const newXP = state.xp + finalXP;
         const newLevel = getLevelFromXP(newXP);
+
+        // Coin logic: 1 Coin per 1 XP (base)
+        // Check for coin boosts
+        const coinBoost = state.activeBoosts.find(b => b.type === 'coin' && b.expiresAt > Date.now());
+        const coinAmount = coinBoost ? finalXP * coinBoost.multiplier : finalXP; // Base exchange 1:1
+
         set({ xp: newXP, level: newLevel });
-        autoSave(get);
+        get().addCoins(Math.floor(coinAmount));
     },
     updateStreak: () => {
         const state = get();
@@ -385,4 +437,83 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         lastActiveDate: '', isAILoading: false,
     }),
     exportData: () => JSON.stringify(get(), null, 2),
+
+    // Economy
+    addCoins: (amount) => {
+        set(s => ({ coins: s.coins + amount }));
+        autoSave(get);
+    },
+    purchaseItem: (itemId) => {
+        const state = get();
+        const item = SHOP_ITEMS.find(i => i.id === itemId);
+
+        if (!item) return false;
+
+        // Check ownership only for non-consumables
+        const isConsumable = item.category === 'boost' || item.category === 'utility';
+        if (!isConsumable && state.inventory.includes(itemId)) return false;
+
+        if (state.coins < item.cost) return false; // Too poor
+
+        const newCoins = state.coins - item.cost;
+        let newInventory = state.inventory;
+
+        // Only add non-consumables (and unique utility items like streak freeze if we want to limit them) to inventory
+        // For now, let's treat Streak Freeze as stackable logic but simplistic inventory:
+        // If I want to allow buying multiple streak freezes, I need a count.
+        // Current system: inventory is string[]. uniqueness is checked.
+        // So Streak Freeze is unique. ONE at a time.
+        // Boosts are consumable immediately, so NOT in inventory.
+
+        if (item.category !== 'boost') {
+            // Themes, Cosmetics, and Streak Freeze (if we want max 1)
+            // If streak freeze is consumable, we should allow buying it again if we don't have one?
+            // Logic above `if (!isConsumable && state.inventory.includes(itemId))` handles "Max 1".
+            // So if I have a streak freeze, I can't buy another.
+            // That's fine for MVP.
+            newInventory = [...state.inventory, itemId];
+        }
+
+        let newBoosts = state.activeBoosts;
+        if (item.category === 'boost' && item.durationHours) {
+            const type = item.id.includes('xp') ? 'xp' : 'coin';
+            const multiplier = item.id.includes('xp') ? 2 : 1.5;
+            newBoosts = [...state.activeBoosts, {
+                id: uid(),
+                type: type as 'xp' | 'coin',
+                multiplier,
+                expiresAt: Date.now() + (item.durationHours * 3600000)
+            }];
+        }
+
+        set({ coins: newCoins, inventory: newInventory, activeBoosts: newBoosts });
+        autoSave(get);
+        return true;
+    },
+    equipItem: (itemId, category) => {
+        const state = get();
+        // Verify ownership
+        if (!state.inventory.includes(itemId) && itemId !== 'default') return;
+
+        const item = SHOP_ITEMS.find(i => i.id === itemId);
+        // Allow equipping 'default' to reset
+        if (itemId === 'default') {
+            set(s => ({ equipped: { ...s.equipped, [category]: 'default' } }));
+            autoSave(get);
+            return;
+        }
+
+        if (item && (item.category === 'theme' || category === 'theme')) {
+            set(s => ({ equipped: { ...s.equipped, theme: item.value || 'default' } }));
+        }
+        autoSave(get);
+    },
+    checkBoosts: () => {
+        const state = get();
+        const now = Date.now();
+        if (state.activeBoosts.some(b => b.expiresAt < now)) {
+            set({ activeBoosts: state.activeBoosts.filter(b => b.expiresAt > now) });
+            autoSave(get);
+        }
+    }
 }));

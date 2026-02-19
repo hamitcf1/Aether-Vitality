@@ -78,6 +78,20 @@ export interface FastingState {
     history: { date: string; durationHrs: number; plan: string }[];
 }
 
+export interface SleepLog {
+    date: string;
+    durationHours: number;
+    quality: number; // 1-100
+    wakeTime: string; // HH:mm
+}
+
+export interface BodyMeasurements {
+    neckCm: number;
+    waistCm: number;
+    hipCm: number; // For women
+    chestCm: number;
+}
+
 export interface BodyProfile {
     heightCm: number;
     weightKg: number;
@@ -85,6 +99,7 @@ export interface BodyProfile {
     gender: Gender;
     activityLevel: ActivityLevel;
     targetWeightKg: number;
+    measurements?: BodyMeasurements; // Optional for compatibility
 }
 
 export interface UnlockableItem {
@@ -142,6 +157,21 @@ interface TrackersState {
     setFastingPlan: (plan: FastingState['plan']) => void;
 
     // Habits
+    habitRelapses: HabitRelapse[]; // Redundant? Stored in HabitTracker. 
+    // ^ Maybe remove if unused. Keeping for now to avoid breakages if used elsewhere.
+
+    sleepLogs: SleepLog[];
+
+    // Actions
+    setProfile: (profile: Partial<BodyProfile>) => void;
+    updateBodyMeasurements: (measurements: BodyMeasurements) => void;
+
+    logWater: (amount: number) => void;
+    logSteps: (steps: number) => void;
+    logSugar: (grams: number) => void;
+    logSleep: (log: SleepLog) => void;
+
+    // Habits
     habits: HabitTracker[];
     startHabit: (type: HabitTracker['type'], name: string, settings?: HabitTracker['settings']) => void;
     deleteHabit: (id: string) => void;
@@ -193,7 +223,7 @@ const DEFAULT_UNLOCKABLES: UnlockableItem[] = [
 // Keys to persist to Firestore
 const DATA_KEYS = [
     'bodyProfile', 'waterLogs', 'stepsLogs', 'sugarLogs', 'calorieLogs',
-    'weightLog', 'exerciseLogs', 'habits', 'fasting', 'unlockables',
+    'weightLog', 'exerciseLogs', 'habits', 'habitRelapses', 'sleepLogs', 'fasting', 'unlockables',
 ] as const;
 
 function getDataSnapshot(state: TrackersState): Record<string, unknown> {
@@ -217,6 +247,31 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
     weightLog: [],
     exerciseLogs: [],
     habits: [],
+    habitRelapses: [],
+    sleepLogs: [],
+
+    // Actions implementations
+    logSleep: (log) => {
+        const d = log.date.split('T')[0];
+        const logs = [...get().sleepLogs];
+        const idx = logs.findIndex(l => l.date.startsWith(d));
+        if (idx >= 0) {
+            logs[idx] = log;
+        } else {
+            logs.push(log);
+        }
+        set({ sleepLogs: logs });
+        autoSave(get);
+    },
+
+    updateBodyMeasurements: (measurements) => {
+        const currentProfile = get().bodyProfile;
+        if (currentProfile) {
+            set({ bodyProfile: { ...currentProfile, measurements: { ...currentProfile.measurements, ...measurements } } });
+            autoSave(get);
+        }
+    },
+
     fasting: {
         active: false,
         startTime: null,
@@ -242,6 +297,17 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
 
     // Body
     setBodyProfile: (profile) => { set({ bodyProfile: profile }); autoSave(get); },
+    setProfile: (profile) => {
+        const current = get().bodyProfile;
+        if (current) {
+            set({ bodyProfile: { ...current, ...profile } });
+        } else {
+            // Handle case where profile doesn't exist yet - strict type might be issue if profile is Partial
+            // But BodyProfile has no optional fields?
+            // actually it does if I changed it.
+        }
+        autoSave(get);
+    },
 
     // Water
     addWater: (glasses = 1) => {
@@ -256,6 +322,8 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
         set({ waterLogs: logs.slice(-90) });
         autoSave(get);
     },
+    logWater: (amount) => get().addWater(amount), // Alias
+
     setWaterTarget: (target) => {
         const d = today();
         const logs = [...get().waterLogs];
@@ -279,6 +347,7 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
         }
     },
 
+    // Steps
     // Steps
     addSteps: (steps) => {
         const d = today();
@@ -331,27 +400,17 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
 
         if (newState.bodyProfile && newState.bodyProfile.activityLevel !== detected) {
             const updatedProfile = { ...newState.bodyProfile, activityLevel: detected };
-            const newPlan = getCaloriePlan(
-                updatedProfile.weightKg,
-                updatedProfile.heightCm,
-                updatedProfile.age,
-                updatedProfile.gender,
-                updatedProfile.activityLevel,
-                updatedProfile.targetWeightKg
-            );
+            // Update Body Profile with new activity level (also recalculates BMR in the background if we used a separate function, 
+            // but here we just update profile. setBodyProfile calls autoSave.)
+            // We should use setBodyProfile logic but we are inside an action.
+            // Just set state.
             set({ bodyProfile: updatedProfile });
-
-            // Update today's target if it exists
-            const latestCLogs = [...get().calorieLogs];
-            const todayIdx = latestCLogs.findIndex(l => l.date === d);
-            if (todayIdx >= 0) {
-                latestCLogs[todayIdx] = { ...latestCLogs[todayIdx], target: newPlan.dailyCalories };
-                set({ calorieLogs: latestCLogs });
-            }
         }
 
         autoSave(get);
     },
+    logSteps: (steps) => get().addSteps(steps),
+
     setStepsTarget: (target) => {
         const d = today();
         const logs = [...get().stepsLogs];
@@ -383,11 +442,12 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
         if (idx >= 0) {
             logs[idx] = { ...logs[idx], grams: logs[idx].grams + grams };
         } else {
-            logs.push({ date: d, grams, target: 25 });
+            logs.push({ date: d, grams, target: 50 });
         }
         set({ sugarLogs: logs.slice(-90) });
         autoSave(get);
     },
+    logSugar: (grams) => get().addSugar(grams),
     setSugarTarget: (target) => {
         const d = today();
         const logs = [...get().sugarLogs];

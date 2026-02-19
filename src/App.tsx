@@ -27,7 +27,8 @@ const ChatPage = lazy(() => import('./pages/ChatPage').then(module => ({ default
 const JournalPage = lazy(() => import('./pages/JournalPage').then(module => ({ default: module.JournalPage })));
 const MeditationPage = lazy(() => import('./pages/MeditationPage').then(module => ({ default: module.MeditationPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
-const GuildsPage = lazy(() => import('./pages/GuildsPage').then(module => ({ default: module.GuildsPage })));
+const GuildsPage = lazy(() => import('./pages/social/GuildsPage').then(module => ({ default: module.GuildsPage })));
+const ShopPage = lazy(() => import('./pages/ShopPage').then(module => ({ default: module.ShopPage })));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
 
 // Loading Component
@@ -45,6 +46,12 @@ const App: React.FC = () => {
     const unsubscribe = initAuthListener();
     return () => unsubscribe();
   }, [initAuthListener]);
+
+  // Theme Engine
+  const equippedTheme = useAetherStore((s) => s.equipped?.theme) || 'default';
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', equippedTheme);
+  }, [equippedTheme]);
 
   if (!initialized || loading) {
     return (
@@ -120,7 +127,9 @@ const App: React.FC = () => {
 
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/meditation" element={<MeditationPage />} />
+            <Route path="/meditation" element={<MeditationPage />} />
             <Route path="/guilds" element={<GuildsPage />} />
+            <Route path="/shop" element={<ShopPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 

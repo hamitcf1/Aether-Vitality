@@ -31,6 +31,58 @@
   --shadow-glow-purple: 0 0 30px rgba(139, 92, 246, 0.2);
 }
 
+/* === THEME OVERRIDES === */
+/* Midnight (Default) - Emerald/Purple */
+[data-theme='midnight'] {
+  --color-brand-emerald: #10b981;
+  --color-brand-emerald-glow: rgba(16, 185, 129, 0.15);
+  --color-brand-purple: #8b5cf6;
+  --color-brand-purple-glow: rgba(139, 92, 246, 0.15);
+}
+
+/* Cyberpunk - Pink/Cyan */
+[data-theme='cyberpunk'] {
+  --color-brand-emerald: #f43f5e;
+  /* Rose as primary */
+  --color-brand-emerald-glow: rgba(244, 63, 94, 0.25);
+  --color-brand-purple: #06b6d4;
+  /* Cyan as secondary */
+  --color-brand-purple-glow: rgba(6, 182, 212, 0.25);
+  --shadow-glow-sm: 0 0 15px rgba(244, 63, 94, 0.25);
+  --shadow-glow-md: 0 0 30px rgba(244, 63, 94, 0.3);
+}
+
+/* Aurora - Green/Blue */
+[data-theme='aurora'] {
+  --color-brand-emerald: #34d399;
+  /* Menthol Green */
+  --color-brand-emerald-glow: rgba(52, 211, 153, 0.2);
+  --color-brand-purple: #3b82f6;
+  /* Blue */
+  --color-brand-purple-glow: rgba(59, 130, 246, 0.2);
+}
+
+/* Gold - Gold/Black */
+[data-theme='gold'] {
+  --color-brand-emerald: #fbbf24;
+  /* Amber */
+  --color-brand-emerald-glow: rgba(251, 191, 36, 0.2);
+  --color-brand-purple: #d97706;
+  /* Dark Amber */
+  --color-brand-purple-glow: rgba(217, 119, 6, 0.2);
+  --product-text: #fbbf24;
+}
+
+/* Zen - Teal/Stone */
+[data-theme='zen'] {
+  --color-brand-emerald: #2dd4bf;
+  /* Teal */
+  --color-brand-emerald-glow: rgba(45, 212, 191, 0.15);
+  --color-brand-purple: #78716c;
+  /* Stone */
+  --color-brand-purple-glow: rgba(120, 113, 108, 0.15);
+}
+
 /* === BASE === */
 html {
   scroll-behavior: smooth;

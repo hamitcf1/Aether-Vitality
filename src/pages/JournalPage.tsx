@@ -17,6 +17,7 @@ export const JournalPage: React.FC = () => {
     const store = useJournalStore();
     const [content, setContent] = useState('');
     const [selectedMood, setSelectedMood] = useState<typeof MOODS[number]['value']>('neutral');
+    const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
 
     const handleSave = () => {
         if (!content.trim()) return;
@@ -25,11 +26,13 @@ export const JournalPage: React.FC = () => {
             date: new Date().toISOString(),
             content,
             mood: selectedMood,
-            tags: [],
+            tags: [], // Could be extracted from content hashtags if we wanted
+            factors: selectedFactors,
         });
 
         setContent('');
         setSelectedMood('neutral');
+        setSelectedFactors([]);
     };
 
     return (
@@ -53,6 +56,30 @@ export const JournalPage: React.FC = () => {
                                 title={m.label}
                             >
                                 <m.icon className="w-6 h-6" style={{ color: selectedMood === m.value ? m.color : '#9ca3af' }} />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mb-4">
+                    <label className="text-sm font-bold text-white mb-2 block">What influenced your mood?</label>
+                    <div className="flex flex-wrap gap-2">
+                        {['Work', 'Family', 'Sleep', 'Diet', 'Exercise', 'Health', 'Social', 'Weather', 'Hobby'].map(factor => (
+                            <button
+                                key={factor}
+                                onClick={() => {
+                                    if (selectedFactors.includes(factor)) {
+                                        setSelectedFactors(selectedFactors.filter(f => f !== factor));
+                                    } else {
+                                        setSelectedFactors([...selectedFactors, factor]);
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedFactors.includes(factor)
+                                    ? 'bg-indigo-500 text-white'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    }`}
+                            >
+                                {factor}
                             </button>
                         ))}
                     </div>
@@ -111,6 +138,11 @@ export const JournalPage: React.FC = () => {
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                        {entry.factors?.map(f => (
+                                            <span key={f} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-gray-400">{f}</span>
+                                        ))}
                                     </div>
                                     <p className="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{entry.content}</p>
                                 </motion.div>
