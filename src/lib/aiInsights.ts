@@ -32,6 +32,9 @@ export async function getDailyInsight(trackerData: {
     sugarGrams: number;
     sugarTarget: number;
     streak: number;
+    exerciseMinutes?: number;
+    caloriesBurned?: number;
+    sobrietyDays?: { name: string; days: number }[];
 }): Promise<string | null> {
     const cached = getCachedInsight('daily');
     if (cached) return cached;
@@ -41,8 +44,9 @@ export async function getDailyInsight(trackerData: {
     const prompt = `You are a mystical health alchemist. Based on yesterday's data, give a short morning motivation (2-3 sentences):
 - Water: ${trackerData.waterGlasses}/${trackerData.waterTarget} glasses
 - Steps: ${trackerData.steps.toLocaleString()}/${trackerData.stepsTarget.toLocaleString()}
-- Calories: ${trackerData.caloriesConsumed}/${trackerData.calorieTarget}
+- Calories: ${trackerData.caloriesConsumed}/${trackerData.calorieTarget} (Burned: ${Math.round(trackerData.caloriesBurned || 0)} via ${trackerData.exerciseMinutes || 0} mins activity)
 - Sugar: ${trackerData.sugarGrams}g/${trackerData.sugarTarget}g limit
+- Sobriety: ${trackerData.sobrietyDays?.map(s => `${s.name}: ${s.days}d`).join(', ') || 'N/A'}
 - Current streak: ${trackerData.streak} days
 
 Be encouraging and mystical. Use alchemical metaphors. Focus on what they did well, suggest one improvement.`;
@@ -100,6 +104,8 @@ export async function getProgressCoaching(stats: {
     totalAchievements: number;
     fatsCompleted: number;
     daysActive: number;
+    habitsMaintained: number;
+    totalExerciseCals: number;
 }): Promise<string | null> {
     const cached = getCachedInsight('coaching');
     if (cached) return cached;
@@ -111,6 +117,8 @@ export async function getProgressCoaching(stats: {
 - Streak: ${stats.streak} days | Active: ${stats.daysActive} days
 - Achievements: ${stats.achievementsUnlocked}/${stats.totalAchievements}
 - Fasting sessions: ${stats.fatsCompleted}
+- Habits tracked: ${stats.habitsMaintained}
+- Total exercise burn: ${Math.round(stats.totalExerciseCals)} kcal
 
 Be motivational and gamified. Reference their level and suggest what to aim for next.`;
 

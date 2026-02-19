@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Heart, Zap, Star, Flame, MessageCircle, Plus, X,
     TrendingUp, Trophy, Target, UtensilsCrossed, Droplets,
-    Footprints, Candy, Sparkles
+    Footprints, Candy, Sparkles, Shield, CigaretteOff, Ban
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { PageTransition } from '../components/layout/PageTransition';
@@ -20,7 +20,7 @@ import { useGreeting } from '../hooks/useGreeting';
 import { getXPProgress, getXPForNextLevel, ACHIEVEMENTS } from '../lib/achievements';
 import { getAlchemistAdvice } from '../lib/gemini';
 import { getDailyInsight } from '../lib/aiInsights';
-import { analyzeMeal, calculateHealthImpact } from '../lib/aiFoodAnalyzer';
+import { analyzeMeal, calculateHealthImpact, validateFoodInput } from '../lib/aiFoodAnalyzer';
 import { isAIAvailable } from '../lib/aiProvider';
 
 export const DashboardPage: React.FC = () => {
@@ -51,6 +51,9 @@ export const DashboardPage: React.FC = () => {
     const getTodayCalories = useTrackersStore((s) => s.getTodayCalories);
     const getTodaySugar = useTrackersStore((s) => s.getTodaySugar);
     const addFood = useTrackersStore((s) => s.addFood);
+    const getTodayExercises = useTrackersStore((s) => s.getTodayExercises);
+    const habits = useTrackersStore((s) => s.habits);
+    const getHabitStreak = useTrackersStore((s) => s.getHabitStreak);
     const greeting = useGreeting(profile?.name || 'Seeker');
 
     const [showMealModal, setShowMealModal] = useState(false);
@@ -58,6 +61,7 @@ export const DashboardPage: React.FC = () => {
     const [isLogging, setIsLogging] = useState(false);
     const [newAchievements, setNewAchievements] = useState<string[]>([]);
     const [aiInsight, setAiInsight] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     const xpProgress = getXPProgress(xp, level);
     const xpNeeded = getXPForNextLevel(level);
@@ -78,6 +82,11 @@ export const DashboardPage: React.FC = () => {
     // Fetch AI daily insight
     useEffect(() => {
         if (isAIAvailable()) {
+            const todayExercises = getTodayExercises();
+            const sobrietyDays = habits.map(h => ({ name: h.name, days: getHabitStreak(h.id).days }));
+            const exerciseMinutes = todayExercises.reduce((sum, ex) => sum + ex.durationMin, 0);
+            const caloriesBurned = todayCalories.burned;
+
             getDailyInsight({
                 waterGlasses: todayWater.glasses,
                 waterTarget: todayWater.target,
@@ -88,6 +97,9 @@ export const DashboardPage: React.FC = () => {
                 sugarGrams: todaySugar.grams,
                 sugarTarget: todaySugar.target,
                 streak,
+                exerciseMinutes,
+                caloriesBurned,
+                sobrietyDays
             }).then(setAiInsight);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,8 +119,17 @@ export const DashboardPage: React.FC = () => {
     const handleLogMeal = useCallback(async () => {
         if (!mealInput.trim()) return;
         setIsLogging(true);
+        setValidationError(null);
         try {
-            // Try AI-powered meal analysis first
+            // Validate input first
+            const validation = await validateFoodInput(mealInput);
+            if (!validation.isFood) {
+                setValidationError(validation.reason);
+                setIsLogging(false);
+                return;
+            }
+
+            // Try AI-powered meal analysis
             const mealAnalysis = await analyzeMeal(mealInput);
 
             let hpImpact: number;
@@ -282,6 +303,41 @@ export const DashboardPage: React.FC = () => {
                 </div>
             </div>
 
+            {/* Active Journeys (Habits) Mini-Widget */}
+            {habits.length > 0 && (
+                <div className="mt-8">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-emerald-400" /> Active Journeys
+                        </h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        {habits.slice(0, 2).map(habit => {
+                            const streak = getHabitStreak(habit.id);
+                            return (
+                                <GlassCard
+                                    key={habit.id}
+                                    className="p-3 cursor-pointer hover:bg-white/[0.05] transition-colors"
+                                    onClick={() => navigate('/trackers')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                                            {habit.type === 'smoking' && <CigaretteOff className="w-4 h-4 text-emerald-400" />}
+                                            {habit.type === 'nofap' && <Ban className="w-4 h-4 text-cyan-400" />}
+                                            {habit.type === 'custom' && <Shield className="w-4 h-4 text-gray-400" />}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-white truncate">{habit.name}</p>
+                                            <p className="text-[10px] text-emerald-400 font-mono">{streak.days}d {streak.hours}h</p>
+                                        </div>
+                                    </div>
+                                </GlassCard>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* AI Daily Insight */}
             {aiInsight && (
                 <GlassCard glow="emerald" padding="md">
@@ -438,11 +494,26 @@ export const DashboardPage: React.FC = () => {
                             </p>
                             <textarea
                                 value={mealInput}
-                                onChange={(e) => setMealInput(e.target.value)}
+                                onChange={(e) => {
+                                    setMealInput(e.target.value);
+                                    if (validationError) setValidationError(null);
+                                }}
                                 placeholder="e.g. Grilled salmon with steamed broccoli and brown rice..."
-                                className="input-field min-h-[100px] resize-none mb-4"
+                                className={`input-field min-h-[100px] resize-none mb-4 ${validationError ? 'border-rose-500/50 bg-rose-500/5' : ''}`}
                                 autoFocus
                             />
+
+                            {validationError && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 mb-4"
+                                >
+                                    <p className="text-xs text-rose-400 font-bold flex items-center gap-2">
+                                        <X className="w-3 h-3" /> {validationError}
+                                    </p>
+                                </motion.div>
+                            )}
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleLogMeal}

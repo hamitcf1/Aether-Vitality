@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Droplets, Footprints, Candy, Flame, Weight, Timer,
-    Plus, Minus, Trash2, TrendingDown, TrendingUp,
+    Plus, Minus, Trash2, TrendingDown, TrendingUp, X,
+    Activity, Dumbbell, Clock,
+    Shield, Ban, Coins, Cigarette, CigaretteOff, History
 } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
 import { PageTransition } from '../components/layout/PageTransition';
@@ -20,6 +22,8 @@ import type { FoodItem } from '../lib/foodDatabase';
 const TABS = [
     { id: 'water', label: 'Water', emoji: '💧' },
     { id: 'steps', label: 'Steps', emoji: '👟' },
+    { id: 'fitness', label: 'Fitness', emoji: '💪' },
+    { id: 'habits', label: 'Habits', emoji: '🛡️' },
     { id: 'calories', label: 'Calories', emoji: '🔥' },
     { id: 'sugar', label: 'Sugar', emoji: '🍬' },
     { id: 'weight', label: 'Weight', emoji: '⚖️' },
@@ -48,6 +52,8 @@ export const TrackersPage: React.FC = () => {
                 >
                     {activeTab === 'water' && <WaterTracker />}
                     {activeTab === 'steps' && <StepsTracker />}
+                    {activeTab === 'fitness' && <FitnessTracker />}
+                    {activeTab === 'habits' && <HabitTrackerView />}
                     {activeTab === 'calories' && <CalorieTracker />}
                     {activeTab === 'sugar' && <SugarTracker />}
                     {activeTab === 'weight' && <WeightTracker />}
@@ -265,8 +271,12 @@ const StepsTracker: React.FC = () => {
 const CalorieTracker: React.FC = () => {
     const store = useTrackersStore();
     const today = store.getTodayCalories();
-    const remaining = today.target - today.consumed;
-    const progress = Math.min(100, (today.consumed / today.target) * 100);
+
+    // Net Calories Formula: Target + Burned - Consumed
+    const totalBudget = today.target + today.burned;
+    const remaining = totalBudget - today.consumed;
+
+    const progress = Math.min(100, (today.consumed / totalBudget) * 100);
     const bp = store.bodyProfile;
 
     // Calculate TDEE-based target if profile exists
@@ -284,7 +294,23 @@ const CalorieTracker: React.FC = () => {
                     sublabel={`${remaining >= 0 ? remaining : 0} cal left`}
                     icon={<Flame className="w-5 h-5 text-amber-400" />}
                 />
-                <p className="text-xs text-gray-500 mt-3">Daily target: {plan?.dailyCalories || today.target} cal</p>
+
+                <div className="flex gap-4 mt-4 w-full max-w-sm">
+                    <div className="flex-1 glass-subtle p-2 text-center rounded-xl">
+                        <p className="text-[10px] text-gray-500 uppercase">Target</p>
+                        <p className="text-sm font-bold text-white">{today.target}</p>
+                    </div>
+                    <div className="flex-1 glass-subtle p-2 text-center rounded-xl">
+                        <p className="text-[10px] text-emerald-400 uppercase font-black">+ Burned</p>
+                        <p className="text-sm font-bold text-emerald-400">{Math.round(today.burned)}</p>
+                    </div>
+                    <div className="flex-1 glass-subtle p-2 text-center rounded-xl border border-white/5">
+                        <p className="text-[10px] text-gray-500 uppercase">Total</p>
+                        <p className="text-sm font-bold text-white">{Math.round(totalBudget)}</p>
+                    </div>
+                </div>
+
+                <p className="text-[10px] text-gray-600 mt-4 italic">Consumed {today.consumed} of {Math.round(totalBudget)} calories</p>
 
                 {plan && (
                     <div className="grid grid-cols-3 gap-3 mt-4 w-full max-w-sm">
@@ -608,5 +634,389 @@ const FastingTracker: React.FC = () => {
                 </div>
             </GlassCard>
         </div>
+    );
+};
+
+// ─── FITNESS TRACKER ──────────────────────────────────────────
+import { ACTIVITIES } from '../lib/fitnessCalculator';
+
+const FitnessTracker: React.FC = () => {
+    const store = useTrackersStore();
+    const todayExercises = store.getTodayExercises();
+    const todayCalories = store.getTodayCalories();
+    const [selectedCategory, setSelectedCategory] = useState<string>('cardio');
+    const [selectedActivity, setSelectedActivity] = useState<string>('');
+    const [duration, setDuration] = useState<string>('30');
+
+    const categories = ['cardio', 'strength', 'sports', 'flexibility', 'recreational'];
+    const filteredActivities = ACTIVITIES.filter(a => a.category === selectedCategory);
+
+    const handleAdd = () => {
+        if (selectedActivity && duration) {
+            store.addExercise(selectedActivity, parseInt(duration));
+            setSelectedActivity('');
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <GlassCard className="flex flex-col items-center py-6" glow="emerald">
+                    <Activity className="w-8 h-8 text-emerald-400 mb-2" />
+                    <p className="text-3xl font-black text-white">{Math.round(todayCalories.burned)}</p>
+                    <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">Total Calories Burned</p>
+                </GlassCard>
+                <GlassCard className="flex flex-col items-center py-6" glow="cyan">
+                    <Clock className="w-8 h-8 text-cyan-400 mb-2" />
+                    <p className="text-3xl font-black text-white">
+                        {todayExercises.reduce((sum, ex) => sum + ex.durationMin, 0)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">Exercise Minutes</p>
+                </GlassCard>
+            </div>
+
+            <GlassCard>
+                <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                    <Dumbbell className="w-4 h-4 text-emerald-400" /> Log Exercise
+                </h3>
+
+                {/* Categories */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all ${selectedCategory === cat
+                                ? 'bg-emerald-500 text-black'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Activity List */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {filteredActivities.map(act => (
+                        <button
+                            key={act.id}
+                            onClick={() => setSelectedActivity(act.id)}
+                            className={`p-2 rounded-xl border text-left transition-all ${selectedActivity === act.id
+                                ? 'border-emerald-500/50 bg-emerald-500/10'
+                                : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05]'
+                                }`}
+                        >
+                            <span className="text-lg">{act.emoji}</span>
+                            <p className="text-[10px] font-bold text-white mt-1 leading-tight">{act.name}</p>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                        <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Duration (min)</label>
+                        <input
+                            type="number"
+                            value={duration}
+                            onChange={(e) => setDuration(e.target.value)}
+                            className="input-field w-full"
+                        />
+                    </div>
+                    <button
+                        onClick={handleAdd}
+                        disabled={!selectedActivity || !duration}
+                        className="btn-primary h-11 px-8"
+                    >
+                        Log
+                    </button>
+                </div>
+            </GlassCard>
+
+            {/* Exercise List */}
+            {todayExercises.length > 0 && (
+                <GlassCard>
+                    <h3 className="text-sm font-bold text-white mb-3 tracking-tight">Today&apos;s Training</h3>
+                    <div className="space-y-2">
+                        {todayExercises.map((ex) => (
+                            <div key={ex.id} className="glass-subtle p-3 flex items-center justify-between group rounded-2xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-xl">
+                                        {ex.emoji}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{ex.name}</p>
+                                        <p className="text-[10px] text-gray-500">
+                                            {ex.durationMin} minutes • {ex.caloriesBurned} cal
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => store.removeExercise(ex.id)}
+                                    className="p-2 text-gray-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </GlassCard>
+            )}
+        </div>
+    );
+};
+
+// ─── HABIT TRACKER ─────────────────────────────────────────────
+function HabitTrackerView() {
+    const store = useTrackersStore();
+    const habits = store.habits;
+    const [showStartModal, setShowStartModal] = useState(false);
+    const [newHabitType, setNewHabitType] = useState<'smoking' | 'nofap' | 'custom'>('smoking');
+    const [newHabitName, setNewHabitName] = useState('');
+
+    // Smoking specifics
+    const [cigsPerDay, setCigsPerDay] = useState('20');
+    const [pricePerPack, setPricePerPack] = useState('15');
+
+    const handleStart = () => {
+        const settings = newHabitType === 'smoking' ? {
+            cigarettesPerDay: parseInt(cigsPerDay),
+            costPerPack: parseFloat(pricePerPack),
+            currency: '$'
+        } : undefined;
+
+        const name = newHabitName || (newHabitType === 'smoking' ? 'Smoking Cessation' : newHabitType === 'nofap' ? 'NoFap' : 'Custom Habit');
+        store.startHabit(newHabitType, name, settings);
+        setShowStartModal(false);
+        setNewHabitName('');
+    };
+
+    return (
+        <div className="space-y-4">
+            {habits.length === 0 ? (
+                <GlassCard className="py-12 flex flex-col items-center justify-center text-center">
+                    <Shield className="w-12 h-12 text-emerald-500/20 mb-4" />
+                    <h3 className="text-xl font-black text-white mb-2">Build Your Sovereignty</h3>
+                    <p className="text-sm text-gray-500 max-w-xs mb-6">
+                        Transmute your weaknesses into strengths. Track sobriety from smoking, NoFap, or generic habits.
+                    </p>
+                    <button onClick={() => setShowStartModal(true)} className="btn-primary px-8">
+                        Start New Journey
+                    </button>
+                </GlassCard>
+            ) : (
+                <>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-emerald-400" /> Active Journeys
+                        </h3>
+                        <button onClick={() => setShowStartModal(true)} className="btn-ghost text-xs flex items-center gap-1">
+                            <Plus className="w-3 h-3" /> New
+                        </button>
+                    </div>
+                    {habits.map(habit => (
+                        <HabitCard key={habit.id} habit={habit} />
+                    ))}
+                </>
+            )}
+
+            {/* Start Habit Modal */}
+            <AnimatePresence>
+                {showStartModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowStartModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
+                            className="glass p-6 w-full max-w-md"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-black text-white">Start New Journey</h3>
+                                <button onClick={() => setShowStartModal(false)} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mb-6">
+                                {(['smoking', 'nofap', 'custom'] as const).map(t => (
+                                    <button
+                                        key={t}
+                                        onClick={() => setNewHabitType(t)}
+                                        className={`p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all ${newHabitType === t ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/5 bg-white/[0.02]'
+                                            }`}
+                                    >
+                                        {t === 'smoking' && <Cigarette className={`w-5 h-5 ${newHabitType === t ? 'text-emerald-400' : 'text-gray-500'}`} />}
+                                        {t === 'nofap' && <Ban className={`w-5 h-5 ${newHabitType === t ? 'text-emerald-400' : 'text-gray-500'}`} />}
+                                        {t === 'custom' && <Shield className={`w-5 h-5 ${newHabitType === t ? 'text-emerald-400' : 'text-gray-500'}`} />}
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-white capitalize">{t}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Journey Name</label>
+                                    <input
+                                        type="text"
+                                        value={newHabitName}
+                                        onChange={(e) => setNewHabitName(e.target.value)}
+                                        placeholder={newHabitType === 'smoking' ? 'Smoking Cessation' : newHabitType === 'nofap' ? 'NoFap' : 'My Habit'}
+                                        className="input-field w-full"
+                                    />
+                                </div>
+
+                                {newHabitType === 'smoking' && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Cigs/Day</label>
+                                            <input
+                                                type="number"
+                                                value={cigsPerDay}
+                                                onChange={(e) => setCigsPerDay(e.target.value)}
+                                                className="input-field w-full"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Price per Pack</label>
+                                            <input
+                                                type="number"
+                                                value={pricePerPack}
+                                                onChange={(e) => setPricePerPack(e.target.value)}
+                                                className="input-field w-full"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button onClick={handleStart} className="btn-primary w-full mt-8">
+                                Begin Transmutation
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+function HabitCard({ habit }: { habit: any }) {
+    const store = useTrackersStore();
+    const streak = store.getHabitStreak(habit.id);
+    const [showRelapseModal, setShowRelapseModal] = useState(false);
+
+    // Smoking stats
+    const savings = habit.type === 'smoking' && habit.settings ?
+        ((habit.settings.cigarettesPerDay / 20) * habit.settings.costPerPack * (streak.totalMinutes / 1440)).toFixed(2) : '0';
+
+    return (
+        <GlassCard className="mb-4 overflow-hidden" glow={habit.type === 'smoking' ? 'emerald' : habit.type === 'nofap' ? 'cyan' : 'purple'}>
+            <div className="p-4">
+                <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl bg-white/5 border border-white/5`}>
+                            {habit.type === 'smoking' && <CigaretteOff className="w-6 h-6 text-emerald-400" />}
+                            {habit.type === 'nofap' && <Ban className="w-6 h-6 text-cyan-400" />}
+                            {habit.type === 'custom' && <Shield className="w-6 h-6 text-gray-400" />}
+                        </div>
+                        <div>
+                            <h4 className="text-base font-black text-white leading-tight">{habit.name}</h4>
+                            <p className="text-[10px] text-gray-500 flex items-center gap-1 uppercase tracking-widest">
+                                <History className="w-3 h-3" /> Since {new Date(habit.startDate).toLocaleDateString()}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={() => store.deleteHabit(habit.id)} className="p-2 text-gray-600 hover:text-rose-500 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                    <div className="glass-subtle p-3 rounded-2xl flex flex-col items-center">
+                        <p className="text-xl font-black text-white">{streak.days}</p>
+                        <p className="text-[8px] text-gray-500 uppercase font-black">Days</p>
+                    </div>
+                    <div className="glass-subtle p-3 rounded-2xl flex flex-col items-center">
+                        <p className="text-xl font-black text-white">{streak.hours}</p>
+                        <p className="text-[8px] text-gray-500 uppercase font-black">Hours</p>
+                    </div>
+                    <div className="glass-subtle p-3 rounded-2xl flex flex-col items-center">
+                        <p className="text-xl font-black text-white">{streak.minutes}</p>
+                        <p className="text-[8px] text-gray-500 uppercase font-black">Minutes</p>
+                    </div>
+                </div>
+
+                {habit.type === 'smoking' && (
+                    <div className="flex gap-2 mb-6">
+                        <div className="flex-1 glass-subtle p-3 rounded-2xl border border-emerald-500/10">
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                <Coins className="w-3 h-3 text-amber-500" /> Money Saved
+                            </p>
+                            <p className="text-lg font-black text-white">{habit.settings.currency || '$'}{savings}</p>
+                        </div>
+                        <div className="flex-1 glass-subtle p-3 rounded-2xl border border-cyan-500/10">
+                            <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                <CigaretteOff className="w-3 h-3 text-cyan-500" /> Cigs Not Smoked
+                            </p>
+                            <p className="text-lg font-black text-white">
+                                {Math.floor((habit.settings.cigarettesPerDay * streak.totalMinutes) / 1440)}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => store.resistUrge(habit.id)}
+                        className="flex-[2] btn-primary flex items-center justify-center gap-2 py-4 shadow-lg shadow-emerald-500/20"
+                    >
+                        <Shield className="w-4 h-4" />
+                        <span>Resist Urge</span>
+                        <span className="bg-black/20 px-2 py-0.5 rounded-full text-[10px] ml-1">{habit.resistedCount}</span>
+                    </button>
+                    <button
+                        onClick={() => setShowRelapseModal(true)}
+                        className="flex-1 btn-secondary border-rose-500/20 text-rose-400 hover:bg-rose-500/5 py-4"
+                    >
+                        Relapsed
+                    </button>
+                </div>
+            </div>
+
+            {/* Relapse Modal */}
+            <AnimatePresence>
+                {showRelapseModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                        onClick={() => setShowRelapseModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                            className="glass p-6 w-full max-w-sm border-rose-500/30"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-black text-rose-400 mb-2">Relapse Noted</h3>
+                            <p className="text-sm text-gray-400 mb-6">
+                                It&apos;s okay, Seeker. Each failure is a lesson on the path. Reset the timer and begin again with fresh resolve.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        store.logRelapse(habit.id);
+                                        setShowRelapseModal(false);
+                                    }}
+                                    className="btn-primary bg-rose-500 hover:bg-rose-600 border-none flex-1"
+                                >
+                                    Reset Timer
+                                </button>
+                                <button onClick={() => setShowRelapseModal(false)} className="btn-ghost flex-1">Wait, cancel</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </GlassCard>
     );
 };

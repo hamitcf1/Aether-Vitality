@@ -165,6 +165,32 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
     return null;
 }
 
+/**
+ * Validate if a text input describes real food, drink, or meals.
+ * Accepts any language.
+ */
+export async function validateFoodInput(text: string): Promise<{ isFood: boolean; reason: string }> {
+    if (!text.trim()) return { isFood: false, reason: 'Empty input' };
+    if (!isAIAvailable()) return { isFood: true, reason: 'AI unavailable' };
+
+    const prompt = `Check if the following text describes actual food, drink, snack, or meal. 
+    Accept any language.
+    Input: "${text}"
+    
+    Respond ONLY with valid JSON structure (no markdown):
+    {
+      "isFood": boolean,
+      "reason": "1 short sentence explaining why it is or isn't food in the same language as the input"
+    }`;
+
+    try {
+        const result = await aiGenerateJSON<{ isFood: boolean; reason: string }>({ prompt, temperature: 0.1 });
+        return result || { isFood: true, reason: 'Validation passed' };
+    } catch (e) {
+        return { isFood: true, reason: 'Validation error, allowing' };
+    }
+}
+
 // ── Health Impact Calculation ──
 
 /**

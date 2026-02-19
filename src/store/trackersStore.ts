@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { format } from 'date-fns';
+import { getCaloriePlan } from '../lib/calorieCalculator';
 import type { Gender, ActivityLevel } from '../lib/calorieCalculator';
 import { saveToFirestore, loadFromFirestore } from '../lib/firestoreSync';
+import { calculateCaloriesBurned, estimateStepsCalories, ACTIVITIES } from '../lib/fitnessCalculator';
 
 // ── Types ──
 export interface DailyWaterLog {
@@ -33,6 +35,38 @@ export interface DailyCalorieLog {
 export interface WeightEntry {
     date: string;
     weightKg: number;
+}
+
+export interface ExerciseLog {
+    id: string;
+    date: string;
+    activityId: string;
+    name: string;
+    emoji: string;
+    durationMin: number;
+    caloriesBurned: number;
+    timestamp: number;
+}
+
+export interface HabitRelapse {
+    date: string;
+    timestamp: number;
+    note?: string;
+}
+
+export interface HabitTracker {
+    id: string;
+    name: string;
+    type: 'smoking' | 'nofap' | 'custom';
+    startDate: number | null;
+    lastRelapse: number | null;
+    resistedCount: number;
+    relapseHistory: HabitRelapse[];
+    settings?: {
+        cigarettesPerDay?: number;
+        costPerPack?: number;
+        currency?: string;
+    };
 }
 
 export interface FastingState {
@@ -95,11 +129,25 @@ interface TrackersState {
     weightLog: WeightEntry[];
     logWeight: (weightKg: number) => void;
 
+    // Fitness
+    exerciseLogs: ExerciseLog[];
+    addExercise: (activityId: string, durationMin: number) => void;
+    removeExercise: (id: string) => void;
+    getTodayExercises: () => ExerciseLog[];
+
     // Fasting
     fasting: FastingState;
     startFast: () => void;
     endFast: () => void;
     setFastingPlan: (plan: FastingState['plan']) => void;
+
+    // Habits
+    habits: HabitTracker[];
+    startHabit: (type: HabitTracker['type'], name: string, settings?: HabitTracker['settings']) => void;
+    deleteHabit: (id: string) => void;
+    logRelapse: (id: string, note?: string) => void;
+    resistUrge: (id: string) => void;
+    getHabitStreak: (id: string) => { days: number; hours: number; minutes: number; totalMinutes: number };
 
     // Unlockables
     unlockables: UnlockableItem[];
@@ -145,7 +193,7 @@ const DEFAULT_UNLOCKABLES: UnlockableItem[] = [
 // Keys to persist to Firestore
 const DATA_KEYS = [
     'bodyProfile', 'waterLogs', 'stepsLogs', 'sugarLogs', 'calorieLogs',
-    'weightLog', 'fasting', 'unlockables',
+    'weightLog', 'exerciseLogs', 'habits', 'fasting', 'unlockables',
 ] as const;
 
 function getDataSnapshot(state: TrackersState): Record<string, unknown> {
@@ -167,6 +215,8 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
     sugarLogs: [],
     calorieLogs: [],
     weightLog: [],
+    exerciseLogs: [],
+    habits: [],
     fasting: {
         active: false,
         startTime: null,
@@ -240,6 +290,66 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
             logs.push({ date: d, steps, target: 10000 });
         }
         set({ stepsLogs: logs.slice(-90) });
+
+        // Update calorie burned from steps
+        const weight = get().bodyProfile?.weightKg || 70;
+        const stepCals = estimateStepsCalories(steps, weight);
+
+        const cLogs = [...get().calorieLogs];
+        const cIdx = cLogs.findIndex(l => l.date === d);
+        if (cIdx >= 0) {
+            cLogs[cIdx] = { ...cLogs[cIdx], burned: cLogs[cIdx].burned + stepCals };
+            set({ calorieLogs: cLogs });
+        } else {
+            const target = get().bodyProfile ? getCaloriePlan(
+                get().bodyProfile!.weightKg,
+                get().bodyProfile!.heightCm,
+                get().bodyProfile!.age,
+                get().bodyProfile!.gender,
+                get().bodyProfile!.activityLevel,
+                get().bodyProfile!.targetWeightKg
+            ).dailyCalories : 2000;
+            cLogs.push({ date: d, consumed: 0, burned: stepCals, target, foods: [] });
+            set({ calorieLogs: cLogs });
+        }
+
+        // Auto-detect activity level
+        const newState = get();
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            return format(date, 'yyyy-MM-dd');
+        });
+        const avgSteps = newState.stepsLogs.filter(l => last7Days.includes(l.date)).reduce((sum, l) => sum + l.steps, 0) / 7;
+        const avgExMin = newState.exerciseLogs.filter(l => last7Days.includes(l.date)).reduce((sum, l) => sum + l.durationMin, 0) / 7;
+
+        let detected: ActivityLevel = 'sedentary';
+        if (avgSteps > 12500 || avgExMin > 60) detected = 'very_active';
+        else if (avgSteps > 10000 || avgExMin > 45) detected = 'active';
+        else if (avgSteps > 7500 || avgExMin > 30) detected = 'moderate';
+        else if (avgSteps > 5000 || avgExMin > 15) detected = 'light';
+
+        if (newState.bodyProfile && newState.bodyProfile.activityLevel !== detected) {
+            const updatedProfile = { ...newState.bodyProfile, activityLevel: detected };
+            const newPlan = getCaloriePlan(
+                updatedProfile.weightKg,
+                updatedProfile.heightCm,
+                updatedProfile.age,
+                updatedProfile.gender,
+                updatedProfile.activityLevel,
+                updatedProfile.targetWeightKg
+            );
+            set({ bodyProfile: updatedProfile });
+
+            // Update today's target if it exists
+            const latestCLogs = [...get().calorieLogs];
+            const todayIdx = latestCLogs.findIndex(l => l.date === d);
+            if (todayIdx >= 0) {
+                latestCLogs[todayIdx] = { ...latestCLogs[todayIdx], target: newPlan.dailyCalories };
+                set({ calorieLogs: latestCLogs });
+            }
+        }
+
         autoSave(get);
     },
     setStepsTarget: (target) => {
@@ -373,6 +483,106 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
         autoSave(get);
     },
 
+    // Fitness
+    addExercise: (activityId, durationMin) => {
+        const activity = ACTIVITIES.find(a => a.id === activityId);
+        if (!activity) return;
+
+        const weight = get().bodyProfile?.weightKg || 70;
+        const burned = calculateCaloriesBurned(activity.met, weight, durationMin);
+        const d = today();
+
+        const log: ExerciseLog = {
+            id: `ex_${Date.now()}`,
+            date: d,
+            activityId,
+            name: activity.name,
+            emoji: activity.emoji,
+            durationMin,
+            caloriesBurned: burned,
+            timestamp: Date.now()
+        };
+
+        set(s => ({ exerciseLogs: [...s.exerciseLogs, log].slice(-100) }));
+
+        // Update daily burned calories
+        const cLogs = [...get().calorieLogs];
+        const cIdx = cLogs.findIndex(l => l.date === d);
+        if (cIdx >= 0) {
+            cLogs[cIdx] = { ...cLogs[cIdx], burned: cLogs[cIdx].burned + burned };
+            set({ calorieLogs: cLogs });
+        } else {
+            const target = get().bodyProfile ? getCaloriePlan(
+                get().bodyProfile!.weightKg,
+                get().bodyProfile!.heightCm,
+                get().bodyProfile!.age,
+                get().bodyProfile!.gender,
+                get().bodyProfile!.activityLevel,
+                get().bodyProfile!.targetWeightKg
+            ).dailyCalories : 2000;
+            cLogs.push({ date: d, consumed: 0, burned, target, foods: [] });
+            set({ calorieLogs: cLogs });
+        }
+
+        // Auto-detect activity level (duplicated logic for simplicity in this hook structure)
+        const newState = get();
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            return format(date, 'yyyy-MM-dd');
+        });
+        const avgSteps = newState.stepsLogs.filter(l => last7Days.includes(l.date)).reduce((sum, l) => sum + l.steps, 0) / 7;
+        const avgExMin = newState.exerciseLogs.filter(l => last7Days.includes(l.date)).reduce((sum, l) => sum + l.durationMin, 0) / 7;
+
+        let detected: ActivityLevel = 'sedentary';
+        if (avgSteps > 12500 || avgExMin > 60) detected = 'very_active';
+        else if (avgSteps > 10000 || avgExMin > 45) detected = 'active';
+        else if (avgSteps > 7500 || avgExMin > 30) detected = 'moderate';
+        else if (avgSteps > 5000 || avgExMin > 15) detected = 'light';
+
+        if (newState.bodyProfile && newState.bodyProfile.activityLevel !== detected) {
+            const updatedProfile = { ...newState.bodyProfile, activityLevel: detected };
+            const newPlan = getCaloriePlan(
+                updatedProfile.weightKg,
+                updatedProfile.heightCm,
+                updatedProfile.age,
+                updatedProfile.gender,
+                updatedProfile.activityLevel,
+                updatedProfile.targetWeightKg
+            );
+            set({ bodyProfile: updatedProfile });
+
+            const latestCLogs = [...get().calorieLogs];
+            const todayIdx = latestCLogs.findIndex(l => l.date === d);
+            if (todayIdx >= 0) {
+                latestCLogs[todayIdx] = { ...latestCLogs[todayIdx], target: newPlan.dailyCalories };
+                set({ calorieLogs: latestCLogs });
+            }
+        }
+
+        autoSave(get);
+    },
+    removeExercise: (id) => {
+        const ex = get().exerciseLogs.find(e => e.id === id);
+        if (!ex) return;
+
+        const d = ex.date;
+        set(s => ({ exerciseLogs: s.exerciseLogs.filter(e => e.id !== id) }));
+
+        // Subtract from daily burned calories
+        const cLogs = [...get().calorieLogs];
+        const cIdx = cLogs.findIndex(l => l.date === d);
+        if (cIdx >= 0) {
+            cLogs[cIdx] = { ...cLogs[cIdx], burned: Math.max(0, cLogs[cIdx].burned - ex.caloriesBurned) };
+            set({ calorieLogs: cLogs });
+        }
+        autoSave(get);
+    },
+    getTodayExercises: () => {
+        const d = today();
+        return get().exerciseLogs.filter(e => e.date === d);
+    },
+
     // Fasting
     startFast: () => {
         set({
@@ -455,6 +665,57 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
         return newlyUnlocked;
     },
 
+    // Habits
+    startHabit: (type, name, settings) => {
+        const id = `${type}_${Date.now()}`;
+        const newHabit: HabitTracker = {
+            id,
+            name,
+            type,
+            startDate: Date.now(),
+            lastRelapse: null,
+            resistedCount: 0,
+            relapseHistory: [],
+            settings
+        };
+        set(s => ({ habits: [...s.habits, newHabit] }));
+        autoSave(get);
+    },
+    deleteHabit: (id) => {
+        set(s => ({ habits: s.habits.filter(h => h.id !== id) }));
+        autoSave(get);
+    },
+    logRelapse: (id, note) => {
+        set(s => ({
+            habits: s.habits.map(h => h.id === id ? {
+                ...h,
+                lastRelapse: Date.now(),
+                relapseHistory: [...h.relapseHistory, { date: today(), timestamp: Date.now(), note }]
+            } : h)
+        }));
+        autoSave(get);
+    },
+    resistUrge: (id) => {
+        set(s => ({
+            habits: s.habits.map(h => h.id === id ? { ...h, resistedCount: h.resistedCount + 1 } : h)
+        }));
+        autoSave(get);
+    },
+    getHabitStreak: (id) => {
+        const habit = get().habits.find(h => h.id === id);
+        if (!habit || !habit.startDate) return { days: 0, hours: 0, minutes: 0, totalMinutes: 0 };
+
+        const start = habit.lastRelapse || habit.startDate;
+        const diffMs = Date.now() - start;
+        const totalMinutes = Math.floor(diffMs / 60000);
+
+        const days = Math.floor(totalMinutes / 1440);
+        const hours = Math.floor((totalMinutes % 1440) / 60);
+        const minutes = totalMinutes % 60;
+
+        return { days, hours, minutes, totalMinutes };
+    },
+
     // Helpers
     getTodayWater: () => {
         const d = today();
@@ -481,6 +742,8 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
         sugarLogs: [],
         calorieLogs: [],
         weightLog: [],
+        exerciseLogs: [],
+        habits: [],
         fasting: {
             active: false,
             startTime: null,
