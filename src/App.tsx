@@ -27,6 +27,7 @@ const ChatPage = lazy(() => import('./pages/ChatPage').then(module => ({ default
 const JournalPage = lazy(() => import('./pages/JournalPage').then(module => ({ default: module.JournalPage })));
 const MeditationPage = lazy(() => import('./pages/MeditationPage').then(module => ({ default: module.MeditationPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const GuildsPage = lazy(() => import('./pages/GuildsPage').then(module => ({ default: module.GuildsPage })));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
 
 // Loading Component
@@ -119,6 +120,7 @@ const App: React.FC = () => {
 
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/meditation" element={<MeditationPage />} />
+            <Route path="/guilds" element={<GuildsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 

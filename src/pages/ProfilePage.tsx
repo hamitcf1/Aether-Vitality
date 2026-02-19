@@ -12,8 +12,10 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { useAetherStore } from '../store/aetherStore';
 import { useAIStore } from '../store/aiStore';
 import { useAuthStore } from '../store/authStore';
+import { useUserStore } from '../store/userStore';
 import { ACHIEVEMENTS } from '../lib/achievements';
 import { getTokenStats, AI_MODELS } from '../lib/aiProvider';
+import { PackageTier } from '../constants/packages';
 
 const AVATARS = ['🧙', '🧪', '⚗️', '🔮', '🌿', '🧬', '🦉', '🐉'];
 const goalIcons = { liver: Heart, anxiety: Brain, discipline: Shield };
@@ -22,6 +24,7 @@ export const ProfilePage: React.FC = () => {
     const store = useAetherStore();
     const aiStore = useAIStore();
     const authStore = useAuthStore();
+    const { profile: userProfile } = useUserStore();
     const profile = store.profile;
     const [editName, setEditName] = useState(false);
     const [newName, setNewName] = useState(profile?.name || '');
@@ -270,71 +273,73 @@ export const ProfilePage: React.FC = () => {
                             </select>
                         </div>
 
-                        {/* API Keys */}
-                        <div className="glass-subtle p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Key className="w-3 h-3 text-amber-400" />
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">API Keys</span>
-                            </div>
-
-                            {/* Env key */}
-                            {import.meta.env.VITE_GEMINI_API_KEY && (
-                                <div className="flex items-center justify-between p-2 glass-subtle rounded-lg mb-2">
-                                    <span className="text-xs text-gray-400">.env key</span>
-                                    <span className="text-xs text-emerald-400">Active</span>
+                        {/* API Keys - Restricted to Aetherius/Admin */}
+                        {userProfile?.packageTier === PackageTier.AETHERIUS && (
+                            <div className="glass-subtle p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Key className="w-3 h-3 text-amber-400" />
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">API Keys</span>
                                 </div>
-                            )}
 
-                            {/* User added keys */}
-                            {aiStore.apiKeys.map((k) => (
-                                <div key={k.key} className="flex items-center justify-between p-2 glass-subtle rounded-lg mb-2">
-                                    <div>
-                                        <span className="text-xs text-gray-300">{k.label}</span>
-                                        <span className="text-[10px] text-gray-600 ml-2">...{k.key.slice(-6)}</span>
+                                {/* Env key */}
+                                {import.meta.env.VITE_GEMINI_API_KEY && (
+                                    <div className="flex items-center justify-between p-2 glass-subtle rounded-lg mb-2">
+                                        <span className="text-xs text-gray-400">.env key</span>
+                                        <span className="text-xs text-emerald-400">Active</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => aiStore.toggleApiKey(k.key)}
-                                            className={`text-[10px] px-2 py-0.5 rounded-full cursor-pointer ${k.enabled
-                                                ? 'bg-emerald-500/10 text-emerald-400'
-                                                : 'bg-gray-500/10 text-gray-500'
-                                                }`}
-                                        >
-                                            {k.enabled ? 'On' : 'Off'}
-                                        </button>
-                                        <button
-                                            onClick={() => aiStore.removeApiKey(k.key)}
-                                            className="text-[10px] text-rose-400 hover:text-rose-300 cursor-pointer"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                )}
 
-                            {/* Add new key */}
-                            <div className="mt-3 space-y-2">
-                                <input
-                                    type="text"
-                                    placeholder="Key label (optional)"
-                                    value={newKeyLabel}
-                                    onChange={(e) => setNewKeyLabel(e.target.value)}
-                                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/30"
-                                />
-                                <div className="flex gap-2">
+                                {/* User added keys */}
+                                {aiStore.apiKeys.map((k) => (
+                                    <div key={k.key} className="flex items-center justify-between p-2 glass-subtle rounded-lg mb-2">
+                                        <div>
+                                            <span className="text-xs text-gray-300">{k.label}</span>
+                                            <span className="text-[10px] text-gray-600 ml-2">...{k.key.slice(-6)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => aiStore.toggleApiKey(k.key)}
+                                                className={`text-[10px] px-2 py-0.5 rounded-full cursor-pointer ${k.enabled
+                                                    ? 'bg-emerald-500/10 text-emerald-400'
+                                                    : 'bg-gray-500/10 text-gray-500'
+                                                    }`}
+                                            >
+                                                {k.enabled ? 'On' : 'Off'}
+                                            </button>
+                                            <button
+                                                onClick={() => aiStore.removeApiKey(k.key)}
+                                                className="text-[10px] text-rose-400 hover:text-rose-300 cursor-pointer"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Add new key */}
+                                <div className="mt-3 space-y-2">
                                     <input
-                                        type="password"
-                                        placeholder="Paste Gemini API key..."
-                                        value={newApiKey}
-                                        onChange={(e) => setNewApiKey(e.target.value)}
-                                        className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/30"
+                                        type="text"
+                                        placeholder="Key label (optional)"
+                                        value={newKeyLabel}
+                                        onChange={(e) => setNewKeyLabel(e.target.value)}
+                                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/30"
                                     />
-                                    <button onClick={handleAddKey} disabled={!newApiKey.trim()} className="btn-primary text-xs px-4 py-2">
-                                        Add
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="password"
+                                            placeholder="Paste Gemini API key..."
+                                            value={newApiKey}
+                                            onChange={(e) => setNewApiKey(e.target.value)}
+                                            className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/30"
+                                        />
+                                        <button onClick={handleAddKey} disabled={!newApiKey.trim()} className="btn-primary text-xs px-4 py-2">
+                                            Add
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Cache Stats */}
                         <div className="glass-subtle p-4">

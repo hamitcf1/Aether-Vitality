@@ -4,6 +4,7 @@ import {
     Droplets, Footprints, Candy, Flame, Weight, Timer,
     Plus, Minus, Trash2, TrendingDown, TrendingUp,
 } from 'lucide-react';
+import { format, subDays, parseISO } from 'date-fns';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { TabBar } from '../components/ui/TabBar';
@@ -62,7 +63,19 @@ const WaterTracker: React.FC = () => {
     const store = useTrackersStore();
     const today = store.getTodayWater();
     const progress = Math.min(100, (today.glasses / today.target) * 100);
-    const weekData = store.waterLogs.slice(-7);
+
+    // Generate last 7 days data
+    const weekData = Array.from({ length: 7 }, (_, i) => {
+        const d = subDays(new Date(), 6 - i);
+        const dateStr = format(d, 'yyyy-MM-dd');
+        const log = store.waterLogs.find(l => l.date === dateStr);
+        return {
+            date: dateStr,
+            dayName: format(d, 'EEE'), // Mon, Tue, etc.
+            glasses: log?.glasses || 0,
+            target: log?.target || 8,
+        };
+    });
 
     return (
         <div className="space-y-4">
@@ -124,9 +137,8 @@ const WaterTracker: React.FC = () => {
                     <Droplets className="w-4 h-4 text-cyan-400" /> This Week
                 </h3>
                 <div className="flex items-end gap-2 h-24">
-                    {[...Array(7)].map((_, i) => {
-                        const day = weekData[weekData.length - 7 + i] || weekData[i];
-                        const pct = day ? Math.min(100, (day.glasses / day.target) * 100) : 0;
+                    {weekData.map((day, i) => {
+                        const pct = Math.min(100, (day.glasses / day.target) * 100);
                         return (
                             <div key={i} className="flex-1 flex flex-col items-center gap-1">
                                 <div className="w-full bg-white/[0.04] rounded-full overflow-hidden h-16 relative">
@@ -137,7 +149,8 @@ const WaterTracker: React.FC = () => {
                                         transition={{ delay: i * 0.05, duration: 0.5 }}
                                     />
                                 </div>
-                                <span className="text-[9px] text-gray-600">{day?.glasses || 0}</span>
+                                <span className="text-[9px] text-gray-600 font-medium">{day.dayName}</span>
+                                <span className="text-[9px] text-gray-500">{day.glasses}</span>
                             </div>
                         );
                     })}
@@ -227,9 +240,18 @@ const StepsTracker: React.FC = () => {
                     <h3 className="text-sm font-bold text-white mb-3">Weekly Steps</h3>
                     <ResponsiveContainer width="100%" height={140}>
                         <BarChart data={store.stepsLogs.slice(-7)}>
-                            <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#525252' }} axisLine={false} tickLine={false} tickFormatter={(v) => v.slice(-5)} />
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fontSize: 9, fill: '#525252' }}
+                                axisLine={false}
+                                tickLine={false}
+                                tickFormatter={(v) => format(parseISO(v), 'EEE')}
+                            />
                             <YAxis tick={{ fontSize: 9, fill: '#525252' }} axisLine={false} tickLine={false} />
-                            <Tooltip contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }} />
+                            <Tooltip
+                                contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }}
+                                labelFormatter={(v) => format(parseISO(v), 'PPP')}
+                            />
                             <Bar dataKey="steps" fill="#10b981" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -498,9 +520,18 @@ const WeightTracker: React.FC = () => {
                                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#525252' }} axisLine={false} tickLine={false} tickFormatter={(v) => v.slice(-5)} />
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fontSize: 9, fill: '#525252' }}
+                                axisLine={false}
+                                tickLine={false}
+                                tickFormatter={(v) => format(parseISO(v), 'EEE')}
+                            />
                             <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 9, fill: '#525252' }} axisLine={false} tickLine={false} />
-                            <Tooltip contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }} />
+                            <Tooltip
+                                contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }}
+                                labelFormatter={(v) => format(parseISO(v), 'PPP')}
+                            />
                             <Area type="monotone" dataKey="weightKg" stroke="#10b981" fill="url(#weightGrad)" strokeWidth={2} />
                         </AreaChart>
                     </ResponsiveContainer>
