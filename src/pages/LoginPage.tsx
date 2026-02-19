@@ -41,7 +41,7 @@ export const LoginPage: React.FC = () => {
                     >
                         <Sparkles className="w-8 h-8 text-emerald-400" />
                     </motion.div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">Aether Vitality</h1>
+                    <h1 className="text-3xl font-bold text-white mb-2">Welcome Back to Aetherius Vitality</h1>
                     <p className="text-sm text-gray-500 mt-1">Sign in to your transmutation journey</p>
                 </div>
 

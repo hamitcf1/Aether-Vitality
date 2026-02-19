@@ -1,49 +1,62 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
-import { AnimatedBackground } from './components/ui/AnimatedBackground';
-import { NavBar } from './components/ui/NavBar';
-import { OnboardingPage } from './pages/OnboardingPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { ChatPage } from './pages/ChatPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { TrackersPage } from './pages/TrackersPage';
-import { ReportsPage } from './pages/ReportsPage';
-import { GamingPage } from './pages/GamingPage';
-import { JournalPage } from './pages/JournalPage';
-import { MeditationPage } from './pages/MeditationPage';
-import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
+import { motion } from 'framer-motion';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { useAetherStore } from './store/aetherStore';
 import { useAuthStore } from './store/authStore';
+import { CustomCursor } from './components/ui/CustomCursor';
+import { DashboardLayout } from './components/layout/DashboardLayout';
+
+// Lazy Load Pages
+const LandingPage = lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
+const RegisterPage = lazy(() => import('./pages/RegisterPage').then(module => ({ default: module.RegisterPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then(module => ({ default: module.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/TermsPage').then(module => ({ default: module.TermsPage })));
+const ContactPage = lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
+const PricingPage = lazy(() => import('./pages/PricingPage').then(module => ({ default: module.PricingPage })));
+import { PublicLayout } from './components/layout/PublicLayout';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
+const TrackersPage = lazy(() => import('./pages/TrackersPage').then(module => ({ default: module.TrackersPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(module => ({ default: module.ReportsPage })));
+const GamingPage = lazy(() => import('./pages/GamingPage').then(module => ({ default: module.GamingPage })));
+const ChatPage = lazy(() => import('./pages/ChatPage').then(module => ({ default: module.ChatPage })));
+const JournalPage = lazy(() => import('./pages/JournalPage').then(module => ({ default: module.JournalPage })));
+const MeditationPage = lazy(() => import('./pages/MeditationPage').then(module => ({ default: module.MeditationPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
+
+// Loading Component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+  </div>
+);
 
 const App: React.FC = () => {
   const onboardingComplete = useAetherStore((s) => s.onboardingComplete);
   const { user, loading, initialized, initAuthListener } = useAuthStore();
 
-  // Initialize Firebase auth listener
   useEffect(() => {
     const unsubscribe = initAuthListener();
     return () => unsubscribe();
   }, [initAuthListener]);
 
-  // Loading splash
   if (!initialized || loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center relative">
-        <AnimatedBackground />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#060714]">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="relative z-10 text-center"
+          className="text-center"
         >
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 border border-emerald-500/20 flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-black text-white mb-2">Aether Vitality</h1>
+          <h1 className="text-2xl font-black text-white mb-2">Aetherius Vitality</h1>
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
@@ -54,69 +67,48 @@ const App: React.FC = () => {
     );
   }
 
-  // Not logged in → auth pages
-  if (!user) {
+  if (!onboardingComplete && user) { // Only show onboarding if user is logged in and onboarding is not complete
     return (
-      <div className="relative">
-        <AnimatedBackground />
-        <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <LoginPage />
-              </motion.div>
-            } />
-            <Route path="/register" element={
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <RegisterPage />
-              </motion.div>
-            } />
-            {/* Clean redirect for any other route to Landing Page if not logged in */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AnimatePresence>
-
-        {/* Conditional rendering for Auth Pages overlay if triggered from Landing Page props (optional, but Routes approach is cleaner) 
-            Actually, the Landing Page controls `authPage` state but we are using Routes now? 
-            No, let's keep it simple. If `authPage` state changes, we can redirect or render. 
-            Better approach: 
-            The LandingPage component has buttons that should navigate to /login or /register.
-            Refactoring:
-        */}
-      </div>
+      <Suspense fallback={<PageLoader />}>
+        <OnboardingPage />
+      </Suspense>
     );
   }
 
-  // Logged in but not onboarded
-  if (!onboardingComplete) {
-    return <OnboardingPage />;
-  }
 
-  // Fully authenticated + onboarded
+
   return (
     <div className="min-h-screen relative">
-      <AnimatedBackground />
-      <NavBar />
+      <CustomCursor />
 
-      {/* Main content area */}
-      <main className="lg:pl-[260px] pb-24 lg:pb-8 p-4 lg:p-8">
-        <div className="max-w-5xl mx-auto">
-          <AnimatePresence mode="wait">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/trackers" element={<TrackersPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/gaming" element={<GamingPage />} />
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/journal" element={<JournalPage />} />
-              <Route path="/meditation" element={<MeditationPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </AnimatePresence>
-        </div>
-      </main>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public Routes */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+            <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+          </Route>
+
+          {/* Protected Routes */}
+          <Route element={user ? <DashboardLayout /> : <Navigate to="/login" replace />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/trackers" element={<TrackersPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/gaming" element={<GamingPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/journal" element={<JournalPage />} />
+            <Route path="/meditation" element={<MeditationPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </div>
   );
 };

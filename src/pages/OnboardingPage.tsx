@@ -106,7 +106,7 @@ export const OnboardingPage: React.FC = () => {
                                 <Sparkles className="w-12 h-12 text-white" />
                             </motion.div>
 
-                            <h1 className="text-4xl font-black text-white mb-3 tracking-tight">Aether Vitality</h1>
+                            <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-4">Welcome to Aetherius</h1>
                             <p className="text-lg text-gray-400 mb-2">Your Personal Health Alchemist</p>
                             <p className="text-sm text-gray-600 max-w-sm mx-auto leading-relaxed">
                                 Transform your health journey with AI-powered guidance, gamified tracking,

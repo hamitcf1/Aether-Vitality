@@ -4,7 +4,7 @@ import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Ga
 import { cn } from '../../lib/cn';
 
 const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/trackers', icon: Activity, label: 'Trackers' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
     { path: '/gaming', icon: Gamepad2, label: 'Gaming' },

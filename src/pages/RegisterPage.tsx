@@ -51,7 +51,7 @@ export const RegisterPage: React.FC = () => {
                     >
                         <Sparkles className="w-8 h-8 text-emerald-400" />
                     </motion.div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">Begin Your Journey</h1>
+                    <h1 className="text-3xl font-black text-white tracking-tight">Join Aetherius Vitality</h1>
                     <p className="text-sm text-gray-500 mt-1">Create your Aether Vitality account</p>
                 </div>
 
