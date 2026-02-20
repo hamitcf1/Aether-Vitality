@@ -39,7 +39,7 @@ function initClientPool(): void {
     const allKeys: { key: string; index: number }[] = [];
 
     // Scan numbered keys: VITE_GEMINI_API_KEY_1 through _8
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= 16; i++) {
         const key = import.meta.env[`VITE_GEMINI_API_KEY_${i}`] as string | undefined;
         if (key?.trim()) {
             allKeys.push({ key: key.trim(), index: -(i) });

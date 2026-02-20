@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Check, Loader2 } from 'lucide-react';
 import { searchFoods, type FoodItem } from '../../lib/foodDatabase';
 import { searchGlobalFoods } from '../../lib/foodService';
+import { getAllCachedFoods } from '../../lib/aiCache';
 
 interface FoodSearchProps {
     onAddFood: (food: FoodItem, servings: number) => void;
@@ -20,7 +21,16 @@ export const FoodSearch: React.FC<FoodSearchProps> = ({ onAddFood, className = '
     useEffect(() => {
         const timer = setTimeout(async () => {
             if (!query.trim()) {
-                setResults(searchFoods('').slice(0, 20)); // Default to local static list
+                // Return cached AI foods + some static database defaults
+                const cached = getAllCachedFoods().map(f => ({ ...f, id: f.name }));
+                const defaults = searchFoods('').slice(0, 10);
+
+                // Merge, prioritizing cached foods
+                const mergedMap = new Map<string, FoodItem>();
+                cached.forEach(c => mergedMap.set(c.id, c));
+                defaults.forEach(d => { if (!mergedMap.has(d.id)) mergedMap.set(d.id, d) });
+
+                setResults(Array.from(mergedMap.values()));
                 setIsSearching(false);
                 return;
             }

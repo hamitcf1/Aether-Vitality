@@ -239,9 +239,16 @@ export const useAIStore = create<AIState>()((set, get) => ({
     // Availability check
     isAIAvailable: () => {
         const s = get();
-        const hasKeys =
-            s.apiKeys.some((k) => k.enabled) ||
-            !!import.meta.env.VITE_GEMINI_API_KEY;
+        // Check user-added store keys OR numbered env keys OR legacy single key
+        let hasKeys = s.apiKeys.some((k) => k.enabled) || !!import.meta.env.VITE_GEMINI_API_KEY;
+        if (!hasKeys) {
+            for (let i = 1; i <= 16; i++) {
+                if (import.meta.env[`VITE_GEMINI_API_KEY_${i}`]) {
+                    hasKeys = true;
+                    break;
+                }
+            }
+        }
         const hasTokenBudget = s.todayTokensUsed < s.dailyTokenBudget;
         return hasKeys && hasTokenBudget;
     },

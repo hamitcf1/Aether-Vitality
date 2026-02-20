@@ -108,7 +108,11 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
     const prompt = `Analyze this meal and break it into individual food items.
     The meal description may be in Turkish or English. Translate food names to English for the "name" field if they are in Turkish, but keep the original Turkish name in parentheses if it helps clarity.
     
-    For each item, provide nutritional analysis per the portion described.
+    For each item, provide nutritional analysis for the EXACT portion described (e.g., if "200 grams", calculate for 200g).
+    CRITICAL PORTION SIZES:
+    - If a weight/volume is given (e.g., "200g", "1 cup"), set \`quantity\` to 1, and set \`servingSize\` to that weight/volume (e.g., "200 grams").
+    - If a count is given (e.g., "3 apples"), set \`quantity\` to 3, and \`servingSize\` to "1 medium apple".
+    
     IMPORTANT: All numerical values (calories, sugar, protein, carbs, fat, fiber) MUST be numbers, NOT strings. Do not include units like "g" or "kcal" in the number fields. If a value is unknown, use 0. Ensure the totalCalories matches the sum of the items.
     
     Meal: "${description}"
