@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, Star, User } from 'lucide-react';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -21,6 +21,8 @@ interface LeaderboardEntry {
 export const LeaderboardPage: React.FC = () => {
     const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [myRank, setMyRank] = useState<number | null>(null);
+    const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
     const myUid = useAetherStore(s => s._uid);
 
     useEffect(() => {
@@ -40,6 +42,30 @@ export const LeaderboardPage: React.FC = () => {
                     ...doc.data()
                 })) as LeaderboardEntry[];
                 setLeaders(data);
+
+                // Find user in top 50
+                const userIndex = data.findIndex(u => u.uid === myUid);
+                if (userIndex !== -1) {
+                    setMyRank(userIndex + 1);
+                    setMyEntry(data[userIndex]);
+                } else if (myUid) {
+                    // Fetch specific user's document if not in top 50
+                    const userRef = collection(db, 'global_leaderboard');
+                    // We need to count how many people have more XP to get rank
+                    const myDocRef = doc(db, 'global_leaderboard', myUid);
+                    import('firebase/firestore').then(async ({ getDoc, query, where, getCountFromServer }) => {
+                        const myDocSnap = await getDoc(myDocRef);
+                        if (myDocSnap.exists()) {
+                            const dataObj = myDocSnap.data();
+                            const myData = { uid: myDocSnap.id, ...dataObj } as LeaderboardEntry;
+                            setMyEntry(myData);
+
+                            const rankQuery = query(userRef, where('xp', '>', myData.xp));
+                            const rankSnap = await getCountFromServer(rankQuery);
+                            setMyRank(rankSnap.data().count + 1);
+                        }
+                    });
+                }
             } catch (err) {
                 console.error("Failed to fetch leaderboard", err);
             } finally {
@@ -47,7 +73,7 @@ export const LeaderboardPage: React.FC = () => {
             }
         };
         fetchLeaderboard();
-    }, []);
+    }, [myUid]);
 
     const getTitleName = (tId: string) => {
         if (!tId || tId === 'Novice') return 'Novice';
@@ -135,6 +161,44 @@ export const LeaderboardPage: React.FC = () => {
                     </div>
                 )}
             </GlassCard>
+
+            {/* Display my rank if not in top 50 but logged in */}
+            {myEntry && myRank && myRank > 50 && (
+                <div className="mt-6 border-t border-white/10 pt-6">
+                    <h3 className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-widest text-center">Your Rank</h3>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={`flex items-center gap-4 p-4 rounded-xl border border-amber-500/50 bg-amber-900/10 shadow-[0_0_15px_rgba(251,191,36,0.15)] mx-auto max-w-xl`}
+                    >
+                        <div className="w-12 text-center flex-col items-center flex-shrink-0">
+                            <span className="text-sm font-bold text-gray-300">#{myRank}</span>
+                        </div>
+                        <div className="w-12 h-12 rounded-xl bg-black/20 border border-white/10 flex items-center justify-center text-2xl flex-shrink-0">
+                            {myEntry.avatar || <User className="w-6 h-6 text-gray-400" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold truncate text-amber-400">
+                                    {myEntry.name || 'Unknown Seeker'}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-[10px] font-black text-amber-400 uppercase tracking-widest">You</span>
+                            </div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mt-0.5 truncate">
+                                {getTitleName(myEntry.title)}
+                            </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                            <div className="text-sm font-black text-white flex items-center gap-1 justify-end">
+                                <Star className="w-3.5 h-3.5 text-amber-400" /> {myEntry.level}
+                            </div>
+                            <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                {myEntry.xp.toLocaleString()} XP
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </PageTransition>
     );
 };

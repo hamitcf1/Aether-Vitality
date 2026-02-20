@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield, Trophy } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield, Trophy, LogOut, Clock, Calendar, Users } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useUserStore } from '../../store/userStore';
+import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -13,6 +14,7 @@ const navItems = [
     { path: '/meditation', icon: Wind, label: 'Meditation' },
     { path: '/chat', icon: MessageCircle, label: 'Alchemist' },
     { path: '/guilds', icon: Shield, label: 'Guilds' },
+    { path: '/community', icon: Users, label: 'Community' },
     { path: '/leaderboard', icon: Trophy, label: 'Leaders' },
     { path: '/profile', icon: User, label: 'Profile' },
 ];
@@ -20,6 +22,13 @@ const navItems = [
 export const NavBar: React.FC = () => {
     const location = useLocation();
     const { features } = useUserStore();
+    const logout = useAuthStore(s => s.signOut);
+    const [time, setTime] = React.useState(new Date());
+
+    React.useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     return (
         <>
@@ -69,9 +78,29 @@ export const NavBar: React.FC = () => {
                         })}
                     </nav>
 
-                    {/* Version */}
-                    <div className="px-3 pb-2">
+                    {/* Clock & Date Widget */}
+                    <div className="mx-3 mb-4 p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1 items-center justify-center">
+                        <div className="flex items-center gap-2 text-white">
+                            <Clock className="w-4 h-4 text-emerald-400" />
+                            <span className="text-sm font-bold tracking-wider">{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-500">
+                            <Calendar className="w-3 h-3" />
+                            <span className="text-[10px] font-medium uppercase tracking-widest">{time.toLocaleDateString()}</span>
+                        </div>
+                    </div>
+
+                    {/* Quick Access Bottom Actions (Logout) */}
+                    <div className="px-3 pb-2 flex items-center justify-between border-t border-white/5 pt-4">
                         <p className="text-[10px] text-gray-700 font-mono">v2.0.0-alpha</p>
+                        <button
+                            onClick={() => logout()}
+                            className="p-2 rounded-xl text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center gap-2"
+                            title="Log Out"
+                        >
+                            <span className="text-xs font-bold uppercase tracking-widest hidden xl:block">Logout</span>
+                            <LogOut className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
             </aside>

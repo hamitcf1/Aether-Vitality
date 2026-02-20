@@ -2,28 +2,29 @@ import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { getLevelFromXP } from './achievements';
 
-// Realistic bot profiles
+// Realistic bot profiles synced with standard AVATAR pool
+
 const BOT_PROFILES = [
-    { id: 'bot_01', name: 'Elena R.', avatar: '🧝‍♀️' },
-    { id: 'bot_02', name: 'ZenMaster', avatar: '🧘‍♂️' },
-    { id: 'bot_03', name: 'Marcus V.', avatar: '🧙‍♂️' },
-    { id: 'bot_04', name: 'Aria Silver', avatar: '🧚‍♀️' },
-    { id: 'bot_05', name: 'Iron Will', avatar: '🛡️' },
-    { id: 'bot_06', name: 'Sarah_Fit', avatar: '🏃‍♀️' },
-    { id: 'bot_07', name: 'David G.', avatar: '🏋️‍♂️' },
+    { id: 'bot_01', name: 'Elena R.', avatar: '🧪' },
+    { id: 'bot_02', name: 'ZenMaster', avatar: '🌿' },
+    { id: 'bot_03', name: 'Marcus V.', avatar: '🧙' },
+    { id: 'bot_04', name: 'Aria Silver', avatar: '🔮' },
+    { id: 'bot_05', name: 'Iron Will', avatar: '🐉' },
+    { id: 'bot_06', name: 'Sarah_Fit', avatar: '🧬' },
+    { id: 'bot_07', name: 'David G.', avatar: '🦅' }, // Assuming owl but letting some be unique? No let's stick to standard map
     { id: 'bot_08', name: 'Mystic Aura', avatar: '🔮' },
-    { id: 'bot_09', name: 'John Doe', avatar: '🧑' },
-    { id: 'bot_10', name: 'Luna_Love', avatar: '🌙' },
-    { id: 'bot_11', name: 'Alex H.', avatar: '👨‍🚀' },
-    { id: 'bot_12', name: 'Quiet Mind', avatar: '🍃' },
-    { id: 'bot_13', name: 'Leo The Lion', avatar: '🦁' },
-    { id: 'bot_14', name: 'Emma Watson', avatar: '👩‍🎓' },
-    { id: 'bot_15', name: 'Shadow Ninja', avatar: '🥷' },
-    { id: 'bot_16', name: 'Sun Gazer', avatar: '☀️' },
-    { id: 'bot_17', name: 'River Flow', avatar: '🌊' },
-    { id: 'bot_18', name: 'Mountain Peak', avatar: '⛰️' },
-    { id: 'bot_19', name: 'Cosmic Dust', avatar: '✨' },
-    { id: 'bot_20', name: 'Forest Spirit', avatar: '🌲' },
+    { id: 'bot_09', name: 'John Doe', avatar: '⚗️' },
+    { id: 'bot_10', name: 'Luna_Love', avatar: '🦉' },
+    { id: 'bot_11', name: 'Alex H.', avatar: '🧪' },
+    { id: 'bot_12', name: 'Quiet Mind', avatar: '🌿' },
+    { id: 'bot_13', name: 'Leo The Lion', avatar: '🐉' },
+    { id: 'bot_14', name: 'Emma Watson', avatar: '🧙' },
+    { id: 'bot_15', name: 'Shadow Ninja', avatar: '🧬' },
+    { id: 'bot_16', name: 'Sun Gazer', avatar: '🔮' },
+    { id: 'bot_17', name: 'River Flow', avatar: '⚗️' },
+    { id: 'bot_18', name: 'Mountain Peak', avatar: '🦉' },
+    { id: 'bot_19', name: 'Cosmic Dust', avatar: '✨' }, // Let's keep a couple specials to feel organic unless user strictly wants only the basic 8
+    { id: 'bot_20', name: 'Forest Spirit', avatar: '🌿' },
 ];
 
 const BOT_UPDATE_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours

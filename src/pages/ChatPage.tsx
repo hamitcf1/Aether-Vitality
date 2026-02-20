@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Trash2, Sparkles, Lightbulb, Heart, Target, Zap, Volume2, VolumeX } from 'lucide-react';
+import { Send, Trash2, Sparkles, Lightbulb, Heart, Target, Volume2, VolumeX } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { ChatBubble, TypingIndicator } from '../components/ui/ChatBubble';
 import { useAetherStore } from '../store/aetherStore';
 import { useTrackersStore } from '../store/trackersStore';
-import { aiGenerate, getTokenStats } from '../lib/aiProvider';
+import { aiGenerate } from '../lib/aiProvider';
 import { client } from '../lib/gemini';
 
 const QUICK_CHIPS = [
@@ -48,6 +48,11 @@ export const ChatPage: React.FC = () => {
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [store.chatHistory, store.isAILoading]);
+
+    // Check daily refill on mount
+    useEffect(() => {
+        store.checkAndRefillDailyTokens();
+    }, [store]);
 
     // System prompt with user + tracker context
     const getSystemPrompt = useCallback(() => {
@@ -99,6 +104,16 @@ RULES:
         if (!text) return;
 
         setInput('');
+
+        // Enforce token limit
+        if (!store.spendAIToken(1)) {
+            store.addChatMessage({
+                role: 'system',
+                content: 'You have exhausted your Alchemist Fragments for today. Return tomorrow or offer coins to restore your connection.'
+            });
+            return;
+        }
+
         store.addChatMessage({ role: 'user', content: text });
         store.setAILoading(true);
 
@@ -162,8 +177,6 @@ RULES:
         }
     };
 
-    const tokenStats = getTokenStats();
-
     return (
         <PageTransition className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-2rem)]">
             {/* Header */}
@@ -179,12 +192,10 @@ RULES:
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Token usage badge */}
-                    {tokenStats.today > 0 && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 glass-subtle text-[10px] font-mono text-gray-500">
-                            <Zap className="w-3 h-3 text-amber-400/60" />
-                            {(tokenStats.today / 1000).toFixed(1)}k tokens
-                        </div>
-                    )}
+                    <div className="flex items-center gap-1.5 px-3 py-1 glass-subtle rounded-full text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <Sparkles className="w-3 h-3" />
+                        {store.aiTokens} / {store.maxAiTokens} Fragments
+                    </div>
 
                     <button
                         onClick={() => {
@@ -244,25 +255,44 @@ RULES:
 
                 {/* Input area */}
                 <div className="p-3 border-t border-white/[0.04]">
-                    <div className="flex gap-2 items-end">
-                        <textarea
-                            ref={inputRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Ask the Alchemist anything..."
-                            rows={1}
-                            className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 resize-none focus:outline-none focus:border-emerald-500/30 transition-colors"
-                        />
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleSend()}
-                            disabled={!input.trim() || store.isAILoading}
-                            className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-glow-sm disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                            <Send className="w-4 h-4" />
-                        </motion.button>
-                    </div>
+                    {store.aiTokens <= 0 ? (
+                        <div className="flex flex-col items-center justify-center p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
+                            <p className="text-sm text-amber-400 font-medium">Connection fragmented. You have no Fragments left.</p>
+                            <button
+                                onClick={() => {
+                                    if (store.coins >= 50) {
+                                        store.addCoins(-50);
+                                        store.refillAITokens(5);
+                                    } else {
+                                        alert("Not enough coins! You need 50 coins.");
+                                    }
+                                }}
+                                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-xl shadow-glow-sm hover:scale-105 transition-transform"
+                            >
+                                Refill 5 Fragments (50 Coins)
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-2 items-end">
+                            <textarea
+                                ref={inputRef}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Ask the Alchemist anything..."
+                                rows={1}
+                                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 resize-none focus:outline-none focus:border-emerald-500/30 transition-colors"
+                            />
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleSend()}
+                                disabled={!input.trim() || store.isAILoading}
+                                className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-glow-sm disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                                <Send className="w-4 h-4" />
+                            </motion.button>
+                        </div>
+                    )}
                 </div>
             </GlassCard>
         </PageTransition>

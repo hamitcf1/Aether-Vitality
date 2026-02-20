@@ -40,6 +40,9 @@ interface AetherState {
     inventory: string[];
     equipped: EquippedItems;
     activeBoosts: ActiveBoost[];
+    aiTokens: number;
+    maxAiTokens: number;
+    lastTokenRefill: number;
 
     // Data
     quests: Quest[];
@@ -94,6 +97,11 @@ interface AetherState {
     purchaseItem: (itemId: string) => boolean;
     equipItem: (itemId: string, category: 'theme' | 'frame' | 'title') => void;
     checkBoosts: () => void;
+
+    // Actions - AI Economy
+    spendAIToken: (amount?: number) => boolean;
+    refillAITokens: (amount?: number) => void;
+    checkAndRefillDailyTokens: () => void;
 }
 
 const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
@@ -115,8 +123,8 @@ const DATA_KEYS = [
     'profile', 'onboardingComplete', 'hp', 'mana', 'xp', 'level', 'streak',
     'lastActiveDate', 'mealsLogged', 'questsCompleted', 'daysActive',
     'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
-    'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
     'hpHistory', 'coins', 'inventory', 'equipped', 'activeBoosts',
+    'aiTokens', 'maxAiTokens', 'lastTokenRefill'
 ] as const;
 
 function getDataSnapshot(state: AetherState): Record<string, unknown> {
@@ -174,6 +182,9 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     inventory: [],
     equipped: { theme: 'default', frame: 'none', title: 'Novice' },
     activeBoosts: [],
+    aiTokens: 10,
+    maxAiTokens: 10,
+    lastTokenRefill: 0,
 
     // Firestore
     loadData: async (userUid) => {
@@ -201,6 +212,13 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
                 patch.equipped = { ...data.equipped, title: (data.equipped as Partial<EquippedItems>).title || 'Novice' };
             } else {
                 patch.equipped = { theme: 'default', frame: 'none', title: 'Novice' };
+            }
+
+            // Defaults for AI Tokens for existing users
+            if (data.aiTokens === undefined) {
+                patch.aiTokens = 10;
+                patch.maxAiTokens = 10;
+                patch.lastTokenRefill = Date.now();
             }
 
             set(patch as Partial<AetherState>);
@@ -494,6 +512,34 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         const now = Date.now();
         if (state.activeBoosts.some(b => b.expiresAt < now)) {
             set({ activeBoosts: state.activeBoosts.filter(b => b.expiresAt > now) });
+            autoSave(get);
+        }
+    },
+
+    // AI Economy
+    spendAIToken: (amount = 1) => {
+        const state = get();
+        if (state.aiTokens >= amount) {
+            set({ aiTokens: state.aiTokens - amount });
+            autoSave(get);
+            return true;
+        }
+        return false;
+    },
+    refillAITokens: (amount) => {
+        const state = get();
+        const newTotal = amount ? state.aiTokens + amount : state.maxAiTokens;
+        set({ aiTokens: Math.min(newTotal, state.maxAiTokens) });
+        autoSave(get);
+    },
+    checkAndRefillDailyTokens: () => {
+        const state = get();
+        const today = new Date().setHours(0, 0, 0, 0);
+        if (state.lastTokenRefill < today) {
+            set({
+                aiTokens: state.maxAiTokens,
+                lastTokenRefill: Date.now()
+            });
             autoSave(get);
         }
     }

@@ -96,6 +96,9 @@ export interface AetherDocument {
     inventory: string[];
     equipped: EquippedItemsData;
     activeBoosts: ActiveBoostData[];
+    aiTokens: number;
+    maxAiTokens: number;
+    lastTokenRefill: number;
 }
 
 // ── Trackers Store Document ──
