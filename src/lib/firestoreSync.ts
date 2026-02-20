@@ -48,7 +48,7 @@ export function saveToFirestore(
     const timer = setTimeout(() => {
         pending.delete(path);
         writeSave(uid, docName, data);
-    }, 500);
+    }, 2000);
 
     pending.set(path, { timer, uid, docName, data });
 }

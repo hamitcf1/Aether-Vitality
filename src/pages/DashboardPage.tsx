@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -65,14 +65,17 @@ export const DashboardPage: React.FC = () => {
     const [aiInsight, setAiInsight] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
 
-    const xpProgress = getXPProgress(xp, level);
-    const xpNeeded = getXPForNextLevel(level);
-    const activeQuests = quests.filter((q) => !q.completed).slice(0, 3);
+    const xpProgress = useMemo(() => getXPProgress(xp, level), [xp, level]);
+    const xpNeeded = useMemo(() => getXPForNextLevel(level), [level]);
+    const activeQuests = useMemo(() => quests.filter((q) => !q.completed).slice(0, 3), [quests]);
 
-    const todayWater = getTodayWater();
-    const todaySteps = getTodaySteps();
-    const todayCalories = getTodayCalories();
-    const todaySugar = getTodaySugar();
+    const todayWater = useMemo(() => getTodayWater(), [getTodayWater]);
+    const todaySteps = useMemo(() => getTodaySteps(), [getTodaySteps]);
+    const todayCalories = useMemo(() => getTodayCalories(), [getTodayCalories]);
+    const todaySugar = useMemo(() => getTodaySugar(), [getTodaySugar]);
+
+    const chartData = useMemo(() => hpHistory.slice(-7), [hpHistory]);
+    const recentMeals = useMemo(() => mealHistory.slice(0, 5), [mealHistory]);
 
     // Generate daily quests on mount
     useEffect(() => {
@@ -396,7 +399,7 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     {hpHistory.length > 1 ? (
                         <ResponsiveContainer width="100%" height={160}>
-                            <AreaChart data={hpHistory.slice(-7)}>
+                            <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="hpGradient" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -462,7 +465,7 @@ export const DashboardPage: React.FC = () => {
                         <UtensilsCrossed className="w-4 h-4 text-rose-400" /> Recent Meals
                     </h3>
                     <div className="space-y-2">
-                        {mealHistory.slice(0, 5).map((log) => (
+                        {recentMeals.map((log) => (
                             <div key={log.id} className="glass-subtle p-3 flex items-center justify-between">
                                 <div>
                                     <span className="text-sm font-medium text-white">{log.meal}</span>

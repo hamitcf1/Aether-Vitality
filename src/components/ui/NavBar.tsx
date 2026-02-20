@@ -18,6 +18,7 @@ const navItems = [
 
 export const NavBar: React.FC = () => {
     const location = useLocation();
+    const { features } = useUserStore();
 
     return (
         <>
@@ -38,8 +39,6 @@ export const NavBar: React.FC = () => {
                     {/* Nav links */}
                     <nav className="flex flex-col gap-1 flex-1">
                         {navItems.map((item) => {
-                            // Check access
-                            const { features } = useUserStore();
                             const isLocked =
                                 (item.path === '/chat' && !features.canAccessAI) ||
                                 (item.path === '/reports' && !features.canAccessReports) ||
