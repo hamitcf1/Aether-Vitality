@@ -22,7 +22,12 @@ export const FoodSearch: React.FC<FoodSearchProps> = ({ onAddFood, className = '
         const timer = setTimeout(async () => {
             if (!query.trim()) {
                 // Return cached AI foods + some static database defaults
-                const cached = getAllCachedFoods().map(f => ({ ...f, id: f.name }));
+                const cached: FoodItem[] = getAllCachedFoods().map(f => ({
+                    ...f,
+                    id: f.name,
+                    emoji: f.source === 'ai' ? '✨' : '🍽️',
+                    category: 'meal' // Default category for cached items
+                }));
                 const defaults = searchFoods('').slice(0, 10);
 
                 // Merge, prioritizing cached foods
