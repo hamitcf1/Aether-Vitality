@@ -1,73 +1,78 @@
-# React + TypeScript + Vite
+# Aetherius Vitality 🌟
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aetherius Vitality is a premium, gamified single-page application (SPA) designed to help you transmute your potential into reality through smart goal tracking, health metrics, and an immersive gamification engine.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🎮 Gamification Engine
+Turn your daily disciplines into an epic journey:
+- **XP & Leveling:** Earn Experience Points by logging habits, meditations, and meals. Level up to prove your dedication.
+- **Unlockable Titles:** Equip unique titles (like *The Awakened* or *Iron Will*) to show off your rank on the Leaderboard.
+- **Achievements:** Earn badges for milestones like perfect streaks and completed quests.
+- **Streaks & Quests:** Maintain daily streaks and complete AI-generated daily quests.
 
-## React Compiler
+### 🏆 Global Leaderboard & Guilds
+- **Global Leaderboard:** Sync your progress to a global Firestore database and compete with other Seekers or dynamic AI Bots.
+- **Guilds System:** Create and join Guilds, collaborate with other members, and communicate via real-time Guild messaging.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 🧠 The Alchemist Assistant
+- **AI Chatbot:** A fully integrated AI assistant powered by Google Gemini, capable of dispensing health wisdom, tracking progress, and analyzing your meals and macros on the fly. 
 
-## Expanding the ESLint configuration
+### 🧘 Health Trackers
+- **Body Metrics & Sleep:** Track measurements, weight, and sleep quality.
+- **Meditation Timer:** Built-in focus and breathing presets (Awake, Calm, Box) with pure React hooks tracking active time.
+- **Water Logging:** Customizable fluid tracking with visual progress.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🛠️ Technology Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **Frontend:** React 18, Vite, TypeScript
+- **Styling:** Tailwind CSS, Framer Motion (for premium animations and layouts), Lucide React (icons)
+- **State Management:** Zustand (with persist middleware for local storage caching)
+- **Backend & Database:** Google Firebase (Auth, Firestore)
+- **AI Integration:** Google Gemini API
+- **Deployment:** Cloudflare Pages (PWA configured visually)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## ⚙️ Local Development Setup
+
+### 1. Prerequisites
+Ensure you have [Node.js](https://nodejs.org/) installed along with `npm` or `yarn`.
+
+### 2. Clone the Repository
+```bash
+git clone https://github.com/hamitcf/Aether-Vitality.git
+cd Aether-Vitality
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 3. Install Dependencies
+```bash
+npm install
 ```
+
+### 4. Setup Environment Variables
+Create a `.env` file in the root directory by duplicating `.env.example`:
+```bash
+cp .env.example .env
+```
+Populate your `.env` with your Firebase Configuration and Gemini API keys. 
+*(Note: Refer to `SETUP_GUIDE.md` for detailed instructions on acquiring these keys).*
+
+### 5. Start the Development Server
+```bash
+npm run dev
+```
+Navigate to `http://localhost:5173` to view the application in your browser.
+
+---
+
+## 🔒 Security Requirements
+For the Leaderboard and Guilds to function properly, your connected Firebase account must deploy the custom `firestore.rules` included in the root directory:
+```bash
+firebase deploy --only firestore:rules
+```
+
+## ✨ Design Philosophy
+Aether Vitality utilizes a deep, dark mode aesthetic combined with glassmorphism, glowing accents (emerald and amber), and smooth micro-animations. The goal is to make personal development feel premium, deliberate, and deeply interactive.

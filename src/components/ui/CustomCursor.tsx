@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion, useMotionValue, useSpring } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx';
@@ -8,7 +9,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export const CURSOR_STORAGE_KEY = 'aether_custom_cursor_enabled';
+const CURSOR_STORAGE_KEY = 'aether_custom_cursor_enabled';
 
 export function getCursorEnabled(): boolean {
     if (typeof window === 'undefined') return true;

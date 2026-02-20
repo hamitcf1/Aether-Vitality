@@ -1,4 +1,4 @@
-import { setDoc, doc, collection, addDoc, onSnapshot } from "firebase/firestore";
+import { setDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "./src/lib/firebase";
 import { signInWithEmailAndPassword, getAuth } from "firebase/auth";
 import * as dotenv from "dotenv";
@@ -25,11 +25,12 @@ async function test() {
 
         console.log("2. Testing Subscriptions to missing rules (raids)...");
         onSnapshot(doc(db, 'guilds', guildId, 'raids', 'active'), {
-            next: (snap) => console.log("raids snapshot success"),
+            next: () => console.log("raids snapshot success"),
             error: (e) => console.error("raids snapshot Error:", e.message)
         });
 
-    } catch (e: any) {
+    } catch (error) {
+        const e = error as Error;
         console.error("FAILED OPERATIONS:", e.message);
     }
 

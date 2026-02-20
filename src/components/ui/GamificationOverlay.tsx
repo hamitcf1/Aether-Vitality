@@ -20,8 +20,7 @@ export const GamificationOverlay: React.FC = () => {
 
     const prevXP = useRef(xp);
     // Ignore initial mount level so it doesn't pop up on load if we're e.g. level 5
-    const [hydratedLevel, setHydratedLevel] = useState(level);
-    const prevLevel = useRef(hydratedLevel);
+    const prevLevel = useRef(level);
 
     const [xpPopups, setXpPopups] = useState<XPPopup[]>([]);
     const [showLevelUp, setShowLevelUp] = useState(false);
@@ -29,17 +28,16 @@ export const GamificationOverlay: React.FC = () => {
 
     const { play } = useSound();
 
-    useEffect(() => {
-        setHydratedLevel(level);
-        prevLevel.current = level;
-    }, []);
-
     // Check Achievements globally
     useEffect(() => {
         const unlocked = checkAchievements();
         if (unlocked.length > 0) {
-            setNewAchievements(unlocked);
-            play('success');
+            // Defer setState to avoid cascading render issues
+            setTimeout(() => {
+                setNewAchievements(unlocked);
+                play('success');
+            }, 0);
+
             const timer = setTimeout(() => setNewAchievements([]), 6000);
             return () => clearTimeout(timer);
         }
@@ -62,8 +60,12 @@ export const GamificationOverlay: React.FC = () => {
     // Track Level Up
     useEffect(() => {
         if (prevLevel.current > 0 && level > prevLevel.current) {
-            setShowLevelUp(true);
-            play('levelUp');
+            // Defer setState
+            setTimeout(() => {
+                setShowLevelUp(true);
+                play('levelUp');
+            }, 0);
+
             setTimeout(() => {
                 setShowLevelUp(false);
             }, 4000);

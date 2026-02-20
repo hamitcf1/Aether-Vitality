@@ -26,7 +26,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ startTime, plan,
 
     useEffect(() => {
         if (!active) {
-            setRemaining(targetMs);
+            setTimeout(() => setRemaining(targetMs), 0);
             return;
         }
         const interval = setInterval(() => {
@@ -39,7 +39,24 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ startTime, plan,
         return () => clearInterval(interval);
     }, [active, calcRemaining, targetMs]);
 
-    const elapsed = active && startTime ? Date.now() - startTime : 0;
+    const [elapsed, setElapsed] = useState(0);
+
+    // Calculate elapsed safely within an effect hook
+    useEffect(() => {
+        let timer: ReturnType<typeof setInterval>;
+        if (active && startTime) {
+            timer = setInterval(() => {
+                setElapsed(Date.now() - startTime);
+            }, 1000);
+            setTimeout(() => setElapsed(Date.now() - startTime), 0); // Initial catch-up
+        } else {
+            setTimeout(() => setElapsed(0), 0);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [active, startTime]);
+
     const progress = Math.min(100, (elapsed / targetMs) * 100);
 
     const hours = Math.floor(remaining / 3600000);

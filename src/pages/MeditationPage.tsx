@@ -25,9 +25,15 @@ export const MeditationPage: React.FC = () => {
     // Timer logic - Countdown
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (isActive && timeLeft > 0) {
+        if (isActive) {
             interval = setInterval(() => {
-                setTimeLeft((prev) => Math.max(0, prev - 1));
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
             }, 1000);
         }
         return () => clearInterval(interval);
@@ -36,7 +42,7 @@ export const MeditationPage: React.FC = () => {
     // Timer logic - Completion
     useEffect(() => {
         if (isActive && timeLeft === 0) {
-            setIsActive(false);
+            setTimeout(() => setIsActive(false), 0);
             store.logMeditation({
                 date: new Date().toISOString(),
                 durationSeconds: duration,

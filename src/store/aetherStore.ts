@@ -4,77 +4,16 @@ import { format } from 'date-fns';
 import { saveToFirestore, saveToFirestoreImmediate, loadFromFirestore, syncToLeaderboard, removeFromLeaderboard } from '../lib/firestoreSync';
 import { SHOP_ITEMS } from '../lib/ShopData';
 
-// ── Types ──
-export interface Quest {
-    id: string;
-    title: string;
-    description: string;
-    type: 'daily' | 'expedition';
-    progress: number;
-    target: number;
-    rewardXP: number;
-    completed: boolean;
-    icon: string;
-}
-
-export interface JournalEntry {
-    id: string;
-    date: string;
-    entry: string;
-    mood: 'great' | 'good' | 'neutral' | 'bad' | 'terrible';
-    hpAtTime: number;
-}
-
-export interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: number;
-    gameUpdates?: { hp?: number; mana?: number; xp?: number };
-}
-
-export interface MealLog {
-    id: string;
-    meal: string;
-    timestamp: number;
-    hpImpact: number;
-    advice: string;
-}
-
-export interface HPHistory {
-    date: string;
-    hp: number;
-}
-
-export interface UserProfile {
-    name: string;
-    avatar: string;
-    healthGoal: 'liver' | 'anxiety' | 'discipline';
-    difficulty: 'casual' | 'committed' | 'ascendant';
-    createdAt: number;
-    heightCm?: number;
-    weightKg?: number;
-    age?: number;
-    gender?: 'male' | 'female';
-    activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-    targetWeightKg?: number;
-    guildId?: string;
-    isPublic?: boolean;
-    bio?: string;
-}
-
-export interface EquippedItems {
-    theme: string;
-    frame: string;
-    title: string;
-}
-
-export interface ActiveBoost {
-    id: string;
-    expiresAt: number;
-    multiplier: number;
-    type: 'xp' | 'coin';
-}
+import type {
+    UserProfileData as UserProfile,
+    QuestData as Quest,
+    JournalEntryData as JournalEntry,
+    ChatMessageData as ChatMessage,
+    MealLogData as MealLog,
+    HPHistoryData as HPHistory,
+    EquippedItemsData as EquippedItems,
+    ActiveBoostData as ActiveBoost
+} from '../lib/firebaseTypes';
 
 interface AetherState {
     // Internal
@@ -259,7 +198,7 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
 
             // Ensure title exists in equipped
             if (data.equipped) {
-                patch.equipped = { ...data.equipped, title: (data.equipped as any).title || 'Novice' };
+                patch.equipped = { ...data.equipped, title: (data.equipped as Partial<EquippedItems>).title || 'Novice' };
             } else {
                 patch.equipped = { theme: 'default', frame: 'none', title: 'Novice' };
             }
@@ -292,16 +231,28 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         const xpBoost = state.activeBoosts.find(b => b.type === 'xp' && b.expiresAt > Date.now());
         const finalXP = xpBoost ? amount * xpBoost.multiplier : amount;
 
-        const newXP = state.xp + finalXP;
+        // Apply streak multiplier
+        let streakMultiplier = 1;
+        if (state.streak >= 30) streakMultiplier = 1.5;
+        else if (state.streak >= 7) streakMultiplier = 1.25;
+        else if (state.streak >= 3) streakMultiplier = 1.1;
+
+        const totalXPAdd = Math.floor(finalXP * streakMultiplier);
+        const newXP = state.xp + totalXPAdd;
         const newLevel = getLevelFromXP(newXP);
 
         // Coin logic: 1 Coin per 1 XP (base)
         // Check for coin boosts
         const coinBoost = state.activeBoosts.find(b => b.type === 'coin' && b.expiresAt > Date.now());
-        const coinAmount = coinBoost ? finalXP * coinBoost.multiplier : finalXP; // Base exchange 1:1
+        const coinAmount = coinBoost ? totalXPAdd * coinBoost.multiplier : totalXPAdd;
 
         set({ xp: newXP, level: newLevel });
         get().addCoins(Math.floor(coinAmount));
+
+        // Deal passive damage to Guild Boss
+        import('./guildsStore').then(({ useGuildsStore }) => {
+            useGuildsStore.getState().dealBossDamage(totalXPAdd);
+        }).catch(err => console.error("Could not apply boss damage", err));
     },
     updateStreak: () => {
         const state = get();

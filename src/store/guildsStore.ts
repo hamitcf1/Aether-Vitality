@@ -26,7 +26,7 @@ export interface GuildMessage {
     senderId: string;
     senderName: string;
     content: string;
-    timestamp: any; // Firestore timestamp
+    timestamp: number; // Firestore timestamp
     type: 'text' | 'system';
 }
 
@@ -62,6 +62,7 @@ interface GuildsState {
     // Raid Actions
     startRaid: () => Promise<void>;
     attackBoss: () => Promise<number>; // Returns damage dealt
+    dealBossDamage: (amount: number) => Promise<void>; // Passive damage from habits
 }
 
 export const useGuildsStore = create<GuildsState>((set, get) => ({
@@ -79,8 +80,8 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             const snapshot = await getDocs(q);
             const guilds = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Guild));
             set({ publicGuilds: guilds, loading: false });
-        } catch (error: any) {
-            set({ error: error.message, loading: false });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error), loading: false });
         }
     },
 
@@ -115,7 +116,7 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             }
 
             set({ activeGuild: newGuild });
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error creating guild:", error);
             throw error;
         }
@@ -145,8 +146,8 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             }
 
             set({ activeGuild: { ...guildData, memberIds: [...guildData.memberIds, user.uid] } });
-        } catch (error: any) {
-            set({ error: error.message });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error) });
         }
     },
 
@@ -169,8 +170,8 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             }
 
             set({ activeGuild: null, messages: [], activeRaid: null });
-        } catch (error: any) {
-            set({ error: error.message });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error) });
         }
     },
 
@@ -220,8 +221,8 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
 
         try {
             await setDoc(doc(db, 'guilds', activeGuild.id, 'raids', 'active'), newRaid);
-        } catch (error: any) {
-            set({ error: error.message });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error) });
         }
     },
 
@@ -280,10 +281,53 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             }
 
             return damage;
-        } catch (error: any) {
+        } catch (error) {
             console.error("Attack failed:", error);
             // Revert on error would be ideal, but for now just log
             return 0;
+        }
+    },
+
+    dealBossDamage: async (amount: number) => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild, activeRaid } = get();
+        if (!user || !activeGuild || !activeRaid || activeRaid.status !== 'active') return;
+
+        const newHp = Math.max(0, activeRaid.currentHp - amount);
+        const status: Raid['status'] = newHp === 0 ? 'defeated' : 'active';
+
+        const updatedRaid = {
+            ...activeRaid,
+            currentHp: newHp,
+            status,
+            contributors: {
+                ...activeRaid.contributors,
+                [user.uid]: (activeRaid.contributors[user.uid] || 0) + amount
+            }
+        };
+        set({ activeRaid: updatedRaid });
+
+        try {
+            const raidRef = doc(db, 'guilds', activeGuild.id, 'raids', 'active');
+            await updateDoc(raidRef, {
+                currentHp: newHp,
+                status,
+                [`contributors.${user.uid}`]: (activeRaid.contributors[user.uid] || 0) + amount
+            });
+
+            if (status === 'defeated') {
+                const aetherState = useAetherStore.getState();
+                const userName = aetherState.profile?.name || 'A dedicated Seeker';
+                await addDoc(collection(db, 'guilds', activeGuild.id, 'messages'), {
+                    senderId: 'system',
+                    senderName: 'System',
+                    content: `🏆 The ${activeRaid.bossName} has been defeated! The final blow was delivered by ${userName}'s continuous efforts!`,
+                    timestamp: new Date(),
+                    type: 'system'
+                });
+            }
+        } catch (error) {
+            console.error("Passive damage failed:", error);
         }
     },
 

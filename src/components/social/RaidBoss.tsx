@@ -117,7 +117,7 @@ export const RaidBoss: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 relative">
                     <button
                         onClick={handleAttack}
                         disabled={isDead || onCooldown}
@@ -141,11 +141,16 @@ export const RaidBoss: React.FC = () => {
                         ) : (
                             <>
                                 <Sword className="w-5 h-5" />
-                                ATTACK
+                                MANUAL ATTACK
                             </>
                         )}
                     </button>
                 </div>
+                {!isDead && (
+                    <p className="text-center text-[10px] text-rose-400 mt-3 flex items-center justify-center gap-1 font-bold">
+                        <Sword className="w-3 h-3" /> Passive attacks occur automatically when you log habits and gain XP!
+                    </p>
+                )}
             </div>
 
             {/* Contributors Section */}

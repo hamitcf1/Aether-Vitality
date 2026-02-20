@@ -28,9 +28,10 @@ export const MiniTracker: React.FC<MiniTrackerProps> = ({
 
     return (
         <motion.button
+            layoutId={`tracker-card-${label.toLowerCase()}`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate(link)}
+            onClick={() => navigate(link, { state: { tab: label.toLowerCase() } })}
             className="glass-subtle p-3 flex items-center gap-3 w-full text-left cursor-pointer group transition-all duration-200 hover:bg-white/[0.04]"
         >
             <div

@@ -1,0 +1,193 @@
+﻿
+C:\Users\hamit\Desktop\aether-vitality\src\components\auth\Restricted.tsx
+  24:9  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\pwa\IOSInstallInstructions.tsx
+  10:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\pwa\InstallPrompt.tsx
+   6:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  10:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\social\HeroCard.tsx
+  36:8   warning  React Hook useEffect has a missing dependency: 'fetchUserData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  45:49  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\trackers\BodyMetrics.tsx
+  36:18  error  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\CountdownTimer.tsx
+  29:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\CountdownTimer.tsx:29:13
+  27 |     useEffect(() => {
+  28 |         if (!active) {
+> 29 |             setRemaining(targetMs);
+     |             ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  30 |             return;
+  31 |         }
+  32 |         const interval = setInterval(() => {                                        react-hooks/set-state-in-effect
+  51:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\CountdownTimer.tsx:51:13
+  49 |                 setElapsed(Date.now() - startTime);
+  50 |             }, 1000);
+> 51 |             setElapsed(Date.now() - startTime); // Initial catch-up
+     |             ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  52 |         } else {
+  53 |             setElapsed(0);
+  54 |         }  react-hooks/set-state-in-effect
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\CustomCursor.tsx
+  19:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\GamificationOverlay.tsx
+  33:9  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\GamificationOverlay.tsx:33:9
+  31 |
+  32 |     useEffect(() => {
+> 33 |         setHydratedLevel(level);
+     |         ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  34 |         prevLevel.current = level;
+  35 |     }, []);
+  36 |  react-hooks/set-state-in-effect
+  35:8  warning  React Hook useEffect has a missing dependency: 'level'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+
+C:\Users\hamit\Desktop\aether-vitality\src\components\ui\button.tsx
+   7:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  60:18  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\hamit\Desktop\aether-vitality\src\context\ToastContext.tsx
+  20:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\hamit\Desktop\aether-vitality\src\lib\SoundManager.ts
+  12:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:18  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+C:\Users\hamit\Desktop\aether-vitality\src\lib\aiFoodAnalyzer.ts
+  168:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  210:14  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+C:\Users\hamit\Desktop\aether-vitality\src\lib\firebaseTypes.ts
+  137:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\ChatPage.tsx
+   97:36  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `isVoiceEnabled`, but the source dependencies were [input, store, getSystemPrompt]. Inferred different dependency than source.
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\ChatPage.tsx:97:36
+   95 |     }, [store, trackers]);
+   96 |
+>  97 |     const handleSend = useCallback(async (message?: string) => {
+      |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  98 |         const text = message || input.trim();
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  99 |         if (!text) return;
+      ÔÇĞ
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 155 |         store.setAILoading(false);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 156 |     }, [input, store, getSystemPrompt]);
+      | ^^^^^^ Could not preserve existing manual memoization
+  157 |
+  158 |     const handleKeyDown = (e: React.KeyboardEvent) => {
+  159 |         if (e.key === 'Enter' && !e.shiftKey) {  react-hooks/preserve-manual-memoization
+  156:8   warning  React Hook useCallback has missing dependencies: 'isVoiceEnabled' and 'speakText'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react-hooks/exhaustive-deps
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\DashboardPage.tsx
+  136:17  error  'combinedAdvice' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\LandingPage.tsx
+  27:8  warning  React Hook useEffect has a missing dependency: 'words.length'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\MeditationPage.tsx
+  34:8   warning  React Hook useEffect has a missing dependency: 'timeLeft'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  39:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\MeditationPage.tsx:39:13
+  37 |     useEffect(() => {
+  38 |         if (isActive && timeLeft === 0) {
+> 39 |             setIsActive(false);
+     |             ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  40 |             store.logMeditation({
+  41 |                 date: new Date().toISOString(),
+  42 |                 durationSeconds: duration,  react-hooks/set-state-in-effect
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\ShopPage.tsx
+  13:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\TrackersPage.tsx
+   44:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\hamit\Desktop\aether-vitality\src\pages\TrackersPage.tsx:44:13
+  42 |     useEffect(() => {
+  43 |         if (location.state?.tab) {
+> 44 |             setActiveTab(location.state.tab);
+     |             ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  45 |         }
+  46 |     }, [location.state]);
+  47 |  react-hooks/set-state-in-effect
+  978:40  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\store\aetherStore.ts
+  201:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\store\guildStore.ts
+   76:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\src\store\guildsStore.ts
+   29:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  224:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  284:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  329:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hamit\Desktop\aether-vitality\test-guild.ts
+   1:23  error  'collection' is defined but never used    @typescript-eslint/no-unused-vars
+   1:35  error  'addDoc' is defined but never used        @typescript-eslint/no-unused-vars
+  28:20  error  'snap' is defined but never used          @typescript-eslint/no-unused-vars
+  32:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 48 problems (43 errors, 5 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

@@ -33,7 +33,7 @@ export function BodyMetrics() {
                 if (w + hips - n <= 0) return 0;
                 return 495 / (1.29579 - 0.35004 * Math.log10(w + hips - n) + 0.22100 * Math.log10(h)) - 450;
             }
-        } catch (e) {
+        } catch {
             return 0;
         }
     };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -24,10 +24,10 @@ export const LandingPage: React.FC = () => {
             setCurrentWordIndex((prev) => (prev + 1) % words.length);
         }, 2500);
         return () => clearInterval(interval);
-    }, []);
+    }, [words.length]);
 
-    // Pre-compute random bar heights so they don't change on re-render
-    const barHeights = useMemo(() => [1, 2, 3, 4, 5].map(() => Math.random() * 60 + 40), []);
+    // Generate random bar heights once on initial mount
+    const [barHeights] = useState(() => [1, 2, 3, 4, 5].map(() => Math.random() * 60 + 40));
 
     const features = [
         {

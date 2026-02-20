@@ -73,8 +73,8 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             } else {
                 set({ userGuild: null, loading: false });
             }
-        } catch (error: any) {
-            set({ error: error.message, loading: false });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error), loading: false });
         }
     },
 
@@ -84,7 +84,7 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             const snapshot = await getDocs(collection(db, 'guilds'));
             const guilds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guild));
             set({ availableGuilds: guilds });
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error fetching guilds:", error);
         }
     },
@@ -116,8 +116,8 @@ export const useGuildStore = create<GuildState>((set, get) => ({
 
             get().subscribeToChat(guildId);
             return true;
-        } catch (error: any) {
-            set({ error: error.message, loading: false });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error), loading: false });
             return false;
         }
     },
@@ -136,8 +136,8 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             // Refresh local state
             await get().fetchUserGuild(user.uid);
             return true;
-        } catch (error: any) {
-            set({ error: error.message, loading: false });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error), loading: false });
             return false;
         }
     },
@@ -159,8 +159,8 @@ export const useGuildStore = create<GuildState>((set, get) => ({
                 members: arrayRemove(user.uid)
             });
             set({ userGuild: null, loading: false });
-        } catch (error: any) {
-            set({ error: error.message, loading: false });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : String(error), loading: false });
         }
     },
 

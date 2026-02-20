@@ -4,7 +4,7 @@ import { X, Trophy, Shield, Star, User, Hash } from 'lucide-react';
 import { GlassCard } from '../ui/GlassCard';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import type { UserProfile, EquippedItems } from '../../store/aetherStore';
+import type { UserProfileData as UserProfile, EquippedItemsData as EquippedItems } from '../../lib/firebaseTypes';
 import { ACHIEVEMENTS } from '../../lib/achievements';
 
 interface HeroCardProps {
@@ -26,6 +26,37 @@ export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) =
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                setLoading(true);
+                const ref = doc(db, 'users', userId, 'data', 'aether');
+                const snap = await getDoc(ref);
+
+                if (snap.exists()) {
+                    const userData = snap.data() as Partial<PublicUserData>;
+                    if (!userData.profile) {
+                        setError("Profile data is missing.");
+                    } else if (userData.profile.isPublic === false) {
+                        setError("This profile is private.");
+                    } else {
+                        setData({
+                            profile: userData.profile,
+                            level: userData.level || 1,
+                            equipped: userData.equipped || { theme: 'default', frame: 'none', title: 'Novice' },
+                            unlockedAchievements: userData.unlockedAchievements || []
+                        });
+                    }
+                } else {
+                    setError("User not found.");
+                }
+            } catch (err) {
+                console.error(err);
+                setError("Failed to load profile.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
         if (isOpen && userId) {
             fetchUserData();
         } else {
@@ -35,35 +66,6 @@ export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) =
         }
     }, [isOpen, userId]);
 
-    const fetchUserData = async () => {
-        try {
-            setLoading(true);
-            const ref = doc(db, 'users', userId, 'data', 'aether');
-            const snap = await getDoc(ref);
-
-            if (snap.exists()) {
-                const userData = snap.data() as any;
-                if (userData.profile?.isPublic === false) {
-                    setError("This profile is private.");
-                } else {
-                    setData({
-                        profile: userData.profile,
-                        level: userData.level || 1,
-                        equipped: userData.equipped || { theme: 'default', frame: 'none' },
-                        unlockedAchievements: userData.unlockedAchievements || []
-                    });
-                }
-            } else {
-                setError("User not found.");
-            }
-        } catch (err) {
-            console.error(err);
-            setError("Failed to load profile.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     return (
         <AnimatePresence>
             {isOpen && (
@@ -72,7 +74,7 @@ export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) =
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(evt) => evt.stopPropagation()}
                         className="w-full max-w-md"
                     >
                         <GlassCard className="relative overflow-hidden" glow="cyan">

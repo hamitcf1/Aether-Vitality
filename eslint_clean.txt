@@ -1,0 +1,21 @@
+C:\Users\hamit\Desktop\aether-vitality\src\components\auth\Restricted.tsx
+  Line 24: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free. (@typescript-eslint/ban-ts-comment)
+C:\Users\hamit\Desktop\aether-vitality\src\components\social\HeroCard.tsx
+  Line 36: React Hook useEffect has a missing dependency: 'fetchUserData'. Either include it or remove the dependency array. (react-hooks/exhaustive-deps)
+C:\Users\hamit\Desktop\aether-vitality\src\components\trackers\BodyMetrics.tsx
+  Line 36: 'e' is defined but never used. (@typescript-eslint/no-unused-vars)
+C:\Users\hamit\Desktop\aether-vitality\src\lib\SoundManager.ts
+  Line 16: 'e' is defined but never used. (@typescript-eslint/no-unused-vars)
+C:\Users\hamit\Desktop\aether-vitality\src\lib\aiFoodAnalyzer.ts
+  Line 210: 'e' is defined but never used. (@typescript-eslint/no-unused-vars)
+C:\Users\hamit\Desktop\aether-vitality\src\pages\DashboardPage.tsx
+  Line 136: 'combinedAdvice' is never reassigned. Use 'const' instead. (prefer-const)
+C:\Users\hamit\Desktop\aether-vitality\src\pages\LandingPage.tsx
+  Line 27: React Hook useEffect has a missing dependency: 'words.length'. Either include it or remove the dependency array. (react-hooks/exhaustive-deps)
+C:\Users\hamit\Desktop\aether-vitality\src\store\aetherStore.ts
+  Line 201: Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+C:\Users\hamit\Desktop\aether-vitality\test-guild.ts
+  Line 1: 'collection' is defined but never used. (@typescript-eslint/no-unused-vars)
+  Line 1: 'addDoc' is defined but never used. (@typescript-eslint/no-unused-vars)
+  Line 28: 'snap' is defined but never used. (@typescript-eslint/no-unused-vars)
+  Line 32: Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)

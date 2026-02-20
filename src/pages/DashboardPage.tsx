@@ -24,6 +24,7 @@ import { analyzeMeal, calculateHealthImpact, validateFoodInput } from '../lib/ai
 import { isAIAvailable } from '../lib/aiProvider';
 import { useToast } from '../context/ToastContext';
 import { useSound } from '../lib/SoundManager';
+import { StreakCalendar } from '../components/trackers/StreakCalendar';
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
@@ -132,7 +133,7 @@ export const DashboardPage: React.FC = () => {
             let totalHpImpact = 0;
             let successCount = 0;
             let wasNutritionTracked = false;
-            let combinedAdvice: string[] = [];
+            const combinedAdvice: string[] = [];
 
             for (const line of mealLines) {
                 // Validate input first
@@ -290,42 +291,34 @@ export const DashboardPage: React.FC = () => {
                     </button>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div onClick={() => navigate('/trackers')} className="cursor-pointer">
-                        <MiniTracker
-                            icon={Droplets}
-                            label="Water"
-                            value={`${todayWater.glasses} glasses`}
-                            progress={(todayWater.glasses / todayWater.target) * 100}
-                            color="#06b6d4"
-                        />
-                    </div>
-                    <div onClick={() => navigate('/trackers')} className="cursor-pointer">
-                        <MiniTracker
-                            icon={Footprints}
-                            label="Steps"
-                            value={`${todaySteps.steps} steps`}
-                            progress={(todaySteps.steps / todaySteps.target) * 100}
-                            color="#10b981"
-                        />
-                    </div>
-                    <div onClick={() => navigate('/trackers')} className="cursor-pointer">
-                        <MiniTracker
-                            icon={Flame}
-                            label="Calories"
-                            value={`${todayCalories.consumed} kcal`}
-                            progress={(todayCalories.consumed / todayCalories.target) * 100}
-                            color="#f59e0b"
-                        />
-                    </div>
-                    <div onClick={() => navigate('/trackers')} className="cursor-pointer">
-                        <MiniTracker
-                            icon={Candy}
-                            label="Sugar"
-                            value={`${todaySugar.grams}g`}
-                            progress={(todaySugar.grams / todaySugar.target) * 100}
-                            color="#f43f5e"
-                        />
-                    </div>
+                    <MiniTracker
+                        icon={Droplets}
+                        label="Water"
+                        value={`${todayWater.glasses} glasses`}
+                        progress={(todayWater.glasses / todayWater.target) * 100}
+                        color="#06b6d4"
+                    />
+                    <MiniTracker
+                        icon={Footprints}
+                        label="Steps"
+                        value={`${todaySteps.steps} steps`}
+                        progress={(todaySteps.steps / todaySteps.target) * 100}
+                        color="#10b981"
+                    />
+                    <MiniTracker
+                        icon={Flame}
+                        label="Calories"
+                        value={`${todayCalories.consumed} kcal`}
+                        progress={(todayCalories.consumed / todayCalories.target) * 100}
+                        color="#f59e0b"
+                    />
+                    <MiniTracker
+                        icon={Candy}
+                        label="Sugar"
+                        value={`${todaySugar.grams}g`}
+                        progress={(todaySugar.grams / todaySugar.target) * 100}
+                        color="#f43f5e"
+                    />
                 </div>
             </div>
 
@@ -447,6 +440,9 @@ export const DashboardPage: React.FC = () => {
                     <Target className="w-5 h-5" /> Quick Progress
                 </button>
             </div>
+
+            {/* Gamification: Streak Calendar */}
+            <StreakCalendar />
 
             {/* Active Quests */}
             {activeQuests.length > 0 && (

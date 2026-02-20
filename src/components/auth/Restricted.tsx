@@ -21,7 +21,7 @@ export const Restricted: React.FC<RestrictedProps> = ({ to, feature, children, f
     let hasAccess = true;
 
     if (feature) {
-        // @ts-ignore - dynamic key access
+        // @ts-expect-error - dynamic key access
         if (!features[feature]) {
             hasAccess = false;
         }

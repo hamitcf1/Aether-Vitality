@@ -85,7 +85,7 @@ export const GuildChat: React.FC = () => {
                                         </button>
                                     )}
                                     <span className="text-gray-700">•</span>
-                                    {new Date(msg.timestamp?.toDate ? msg.timestamp.toDate() : msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
                         );

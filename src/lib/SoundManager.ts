@@ -9,8 +9,11 @@ class AudioController {
 
     constructor() {
         try {
-            this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        } catch (e) {
+            const AudioContextClass = window.AudioContext || ((window as unknown) as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+            if (AudioContextClass) {
+                this.ctx = new AudioContextClass();
+            }
+        } catch {
             console.warn('AudioContext not supported');
         }
     }

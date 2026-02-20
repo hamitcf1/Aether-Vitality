@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Trash2, Sparkles, Lightbulb, Heart, Target, Zap } from 'lucide-react';
+import { Send, Trash2, Sparkles, Lightbulb, Heart, Target, Zap, Volume2, VolumeX } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { ChatBubble, TypingIndicator } from '../components/ui/ChatBubble';
@@ -19,8 +19,31 @@ export const ChatPage: React.FC = () => {
     const store = useAetherStore();
     const trackers = useTrackersStore();
     const [input, setInput] = useState('');
+    const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+
+    // Speak helper
+    const speakText = useCallback((text: string) => {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel(); // Stop current speech
+
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        // Find a calm/premium voice if possible
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v =>
+            v.name.includes('Google UK English Female') ||
+            v.name.includes('Samantha') ||
+            (v.lang === 'en-GB' && v.name.includes('Female'))
+        );
+        if (preferredVoice) utterance.voice = preferredVoice;
+
+        utterance.rate = 0.95; // Slightly slower for mystical tone
+        utterance.pitch = 0.9;
+
+        window.speechSynthesis.speak(utterance);
+    }, []);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -92,6 +115,7 @@ RULES:
 
             if (response) {
                 store.addChatMessage({ role: 'assistant', content: response.text });
+                if (isVoiceEnabled) speakText(response.text);
             } else if (client) {
                 // Fallback to direct client
                 const history = store.chatHistory.slice(-10).map((m) => ({
@@ -111,6 +135,7 @@ RULES:
 
                 const aiResponse = result.text || 'The Alchemist is lost in contemplation...';
                 store.addChatMessage({ role: 'assistant', content: aiResponse });
+                if (isVoiceEnabled) speakText(aiResponse);
             } else {
                 store.addChatMessage({
                     role: 'assistant',
@@ -128,7 +153,7 @@ RULES:
         }
 
         store.setAILoading(false);
-    }, [input, store, getSystemPrompt]);
+    }, [input, store, getSystemPrompt, isVoiceEnabled, speakText]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -160,6 +185,18 @@ RULES:
                             {(tokenStats.today / 1000).toFixed(1)}k tokens
                         </div>
                     )}
+
+                    <button
+                        onClick={() => {
+                            setIsVoiceEnabled(!isVoiceEnabled);
+                            if (isVoiceEnabled) window.speechSynthesis?.cancel();
+                        }}
+                        className={`btn-ghost text-xs flex items-center gap-1 ${isVoiceEnabled ? 'text-emerald-400' : 'text-gray-500 hover:text-white'}`}
+                        title={isVoiceEnabled ? "Voice Enabled" : "Voice Disabled"}
+                    >
+                        {isVoiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                    </button>
+
                     {store.chatHistory.length > 0 && (
                         <button onClick={store.clearChat} className="btn-ghost text-xs flex items-center gap-1 text-gray-600 hover:text-rose-400">
                             <Trash2 className="w-3.5 h-3.5" /> Clear

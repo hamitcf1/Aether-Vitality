@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import {
     Droplets, Footprints, Candy, Flame, Weight, Timer,
     Plus, Minus, Trash2, TrendingDown, TrendingUp, X,
@@ -14,6 +15,7 @@ import { CircularProgress } from '../components/ui/CircularProgress';
 import { CountdownTimer } from '../components/ui/CountdownTimer';
 import { FoodSearch } from '../components/ui/FoodSearch';
 import { useTrackersStore } from '../store/trackersStore';
+import type { HabitTracker as Habit } from '../store/trackersStore';
 import { calculateBMI, getHealthyWeightRange } from '../lib/bmiCalculator';
 import { getCaloriePlan } from '../lib/calorieCalculator';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -35,7 +37,14 @@ const TABS = [
 ];
 
 export const TrackersPage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState('water');
+    const location = useLocation();
+    const [activeTab, setActiveTab] = useState(location.state?.tab || 'water');
+
+    useEffect(() => {
+        if (location.state?.tab) {
+            setTimeout(() => setActiveTab(location.state.tab), 0);
+        }
+    }, [location.state]);
 
     return (
         <PageTransition className="space-y-5">
@@ -117,60 +126,62 @@ const WaterTracker: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <GlassCard className="flex flex-col items-center py-8" glow="cyan">
-                {/* Unit Selector */}
-                <div className="flex gap-2 mb-6 bg-white/5 p-1 rounded-xl glass-subtle">
-                    {(['ml', 'cups', 'bottles'] as const).map(u => (
-                        <button
-                            key={u}
-                            onClick={() => store.setWaterUnit(u)}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${unit === u ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:text-white hover:bg-white/10'
-                                }`}
-                        >
-                            {u}
-                        </button>
-                    ))}
-                </div>
+            <motion.div layoutId="tracker-card-water">
+                <GlassCard className="flex flex-col items-center py-8" glow="cyan">
+                    {/* Unit Selector */}
+                    <div className="flex gap-2 mb-6 bg-white/5 p-1 rounded-xl glass-subtle">
+                        {(['ml', 'cups', 'bottles'] as const).map(u => (
+                            <button
+                                key={u}
+                                onClick={() => store.setWaterUnit(u)}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${unit === u ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                {u}
+                            </button>
+                        ))}
+                    </div>
 
-                <CircularProgress
-                    value={progress}
-                    size={160}
-                    strokeWidth={10}
-                    color="#06b6d4"
-                    label={`${formatValue(today.glasses)}${unit === 'ml' ? 'ml' : ''}`}
-                    sublabel={`of ${formatValue(today.target)} ${unit}`}
-                    icon={<Droplets className="w-5 h-5 text-cyan-400" />}
-                />
-                <div className="flex items-center gap-3 mt-6">
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => store.removeWater(1)}
-                        className="btn-ghost p-3 text-cyan-400 hover:bg-cyan-400/10 rounded-xl"
-                        title="Remove"
-                    >
-                        <Minus className="w-5 h-5" />
-                    </motion.button>
-                    {getQuickAddValues().map((v, i) => (
+                    <CircularProgress
+                        value={progress}
+                        size={160}
+                        strokeWidth={10}
+                        color="#06b6d4"
+                        label={`${formatValue(today.glasses)}${unit === 'ml' ? 'ml' : ''}`}
+                        sublabel={`of ${formatValue(today.target)} ${unit}`}
+                        icon={<Droplets className="w-5 h-5 text-cyan-400" />}
+                    />
+                    <div className="flex items-center gap-3 mt-6">
                         <motion.button
-                            key={v}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => store.addWater(getGlassesFromValue(v))}
-                            className={`px-4 py-2 ${i === 0 ? 'btn-primary flex items-center gap-2 px-6' : 'btn-secondary'}`}
+                            onClick={() => store.removeWater(1)}
+                            className="btn-ghost p-3 text-cyan-400 hover:bg-cyan-400/10 rounded-xl"
+                            title="Remove"
                         >
-                            {i === 0 && <Plus className="w-4 h-4" />} +{v} {unit === 'ml' && i === 0 ? 'ml' : ''}
+                            <Minus className="w-5 h-5" />
                         </motion.button>
-                    ))}
-                </div>
-                {progress >= 100 && (
-                    <motion.p
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="text-emerald-400 text-sm font-bold mt-3"
-                    >
-                        🎉 Daily goal reached!
-                    </motion.p>
-                )}
-            </GlassCard>
+                        {getQuickAddValues().map((v, i) => (
+                            <motion.button
+                                key={v}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => store.addWater(getGlassesFromValue(v))}
+                                className={`px-4 py-2 ${i === 0 ? 'btn-primary flex items-center gap-2 px-6' : 'btn-secondary'}`}
+                            >
+                                {i === 0 && <Plus className="w-4 h-4" />} +{v} {unit === 'ml' && i === 0 ? 'ml' : ''}
+                            </motion.button>
+                        ))}
+                    </div>
+                    {progress >= 100 && (
+                        <motion.p
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="text-emerald-400 text-sm font-bold mt-3"
+                        >
+                            🎉 Daily goal reached!
+                        </motion.p>
+                    )}
+                </GlassCard>
+            </motion.div>
 
             {/* Timeline */}
             <GlassCard>
@@ -215,70 +226,72 @@ const StepsTracker: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <GlassCard className="flex flex-col items-center py-8" glow="emerald">
-                <CircularProgress
-                    value={progress}
-                    size={160}
-                    strokeWidth={10}
-                    color="#10b981"
-                    label={today.steps.toLocaleString()}
-                    sublabel={`of ${today.target.toLocaleString()} steps`}
-                    icon={<Footprints className="w-5 h-5 text-emerald-400" />}
-                />
-                <div className="flex items-center gap-2 mt-6">
-                    <input
-                        type="number"
-                        value={addAmount}
-                        onChange={(e) => setAddAmount(e.target.value)}
-                        placeholder="Steps..."
-                        className="input-field w-28 text-center text-sm"
+            <motion.div layoutId="tracker-card-steps">
+                <GlassCard className="flex flex-col items-center py-8" glow="emerald">
+                    <CircularProgress
+                        value={progress}
+                        size={160}
+                        strokeWidth={10}
+                        color="#10b981"
+                        label={today.steps.toLocaleString()}
+                        sublabel={`of ${today.target.toLocaleString()} steps`}
+                        icon={<Footprints className="w-5 h-5 text-emerald-400" />}
                     />
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                            const n = parseInt(addAmount);
-                            if (n > 0) { store.removeSteps(n); setAddAmount(''); }
-                        }}
-                        disabled={!addAmount || parseInt(addAmount) <= 0}
-                        className="btn-ghost p-3 text-emerald-400 hover:bg-emerald-400/10 rounded-xl"
-                        title="Subtract steps"
-                    >
-                        <Minus className="w-5 h-5" />
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                            const n = parseInt(addAmount);
-                            if (n > 0) { store.addSteps(n); setAddAmount(''); }
-                        }}
-                        disabled={!addAmount || parseInt(addAmount) <= 0}
-                        className="btn-primary px-6"
-                    >
-                        <Plus className="w-4 h-4" />
-                    </motion.button>
-                </div>
-                <div className="flex gap-2 mt-3">
-                    {[1000, 2500, 5000].map((v) => (
+                    <div className="flex items-center gap-2 mt-6">
+                        <input
+                            type="number"
+                            value={addAmount}
+                            onChange={(e) => setAddAmount(e.target.value)}
+                            placeholder="Steps..."
+                            className="input-field w-28 text-center text-sm"
+                        />
                         <motion.button
-                            key={v}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => store.addSteps(v)}
-                            className="btn-secondary text-xs px-3 py-2"
+                            onClick={() => {
+                                const n = parseInt(addAmount);
+                                if (n > 0) { store.removeSteps(n); setAddAmount(''); }
+                            }}
+                            disabled={!addAmount || parseInt(addAmount) <= 0}
+                            className="btn-ghost p-3 text-emerald-400 hover:bg-emerald-400/10 rounded-xl"
+                            title="Subtract steps"
                         >
-                            +{(v / 1000).toFixed(v >= 1000 ? 0 : 1)}K
+                            <Minus className="w-5 h-5" />
                         </motion.button>
-                    ))}
-                </div>
-                {progress >= 100 && (
-                    <motion.p
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="text-emerald-400 text-sm font-bold mt-3"
-                    >
-                        🏆 Step goal smashed!
-                    </motion.p>
-                )}
-            </GlassCard>
+                        <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                                const n = parseInt(addAmount);
+                                if (n > 0) { store.addSteps(n); setAddAmount(''); }
+                            }}
+                            disabled={!addAmount || parseInt(addAmount) <= 0}
+                            className="btn-primary px-6"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </motion.button>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                        {[1000, 2500, 5000].map((v) => (
+                            <motion.button
+                                key={v}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => store.addSteps(v)}
+                                className="btn-secondary text-xs px-3 py-2"
+                            >
+                                +{(v / 1000).toFixed(v >= 1000 ? 0 : 1)}K
+                            </motion.button>
+                        ))}
+                    </div>
+                    {progress >= 100 && (
+                        <motion.p
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="text-emerald-400 text-sm font-bold mt-3"
+                        >
+                            🏆 Step goal smashed!
+                        </motion.p>
+                    )}
+                </GlassCard>
+            </motion.div>
 
             {/* Weekly Timeline */}
             <GlassCard>
@@ -342,51 +355,53 @@ const CalorieTracker: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <GlassCard className="flex flex-col items-center py-6" glow="gold">
-                <CircularProgress
-                    value={progress}
-                    size={150}
-                    strokeWidth={10}
-                    color={remaining >= 0 ? '#f59e0b' : '#f43f5e'}
-                    label={`${today.consumed}`}
-                    sublabel={`${remaining >= 0 ? remaining : 0} cal left`}
-                    icon={<Flame className="w-5 h-5 text-amber-400" />}
-                />
+            <motion.div layoutId="tracker-card-calories">
+                <GlassCard className="flex flex-col items-center py-6" glow="gold">
+                    <CircularProgress
+                        value={progress}
+                        size={150}
+                        strokeWidth={10}
+                        color={remaining >= 0 ? '#f59e0b' : '#f43f5e'}
+                        label={`${today.consumed}`}
+                        sublabel={`${remaining >= 0 ? remaining : 0} cal left`}
+                        icon={<Flame className="w-5 h-5 text-amber-400" />}
+                    />
 
-                <div className="flex gap-4 mt-4 w-full max-w-sm">
-                    <div className="flex-1 glass-subtle p-2 text-center rounded-xl">
-                        <p className="text-[10px] text-gray-500 uppercase">Target</p>
-                        <p className="text-sm font-bold text-white">{today.target}</p>
-                    </div>
-                    <div className="flex-1 glass-subtle p-2 text-center rounded-xl">
-                        <p className="text-[10px] text-emerald-400 uppercase font-black">+ Burned</p>
-                        <p className="text-sm font-bold text-emerald-400">{Math.round(today.burned)}</p>
-                    </div>
-                    <div className="flex-1 glass-subtle p-2 text-center rounded-xl border border-white/5">
-                        <p className="text-[10px] text-gray-500 uppercase">Total</p>
-                        <p className="text-sm font-bold text-white">{Math.round(totalBudget)}</p>
-                    </div>
-                </div>
-
-                <p className="text-[10px] text-gray-600 mt-4 italic">Consumed {today.consumed} of {Math.round(totalBudget)} calories</p>
-
-                {plan && (
-                    <div className="grid grid-cols-3 gap-3 mt-4 w-full max-w-sm">
-                        <div className="glass-subtle p-2 text-center rounded-xl">
-                            <p className="text-xs text-gray-500">BMR</p>
-                            <p className="text-sm font-bold text-white">{plan.bmr}</p>
+                    <div className="flex gap-4 mt-4 w-full max-w-sm">
+                        <div className="flex-1 glass-subtle p-2 text-center rounded-xl">
+                            <p className="text-[10px] text-gray-500 uppercase">Target</p>
+                            <p className="text-sm font-bold text-white">{today.target}</p>
                         </div>
-                        <div className="glass-subtle p-2 text-center rounded-xl">
-                            <p className="text-xs text-gray-500">TDEE</p>
-                            <p className="text-sm font-bold text-white">{plan.tdee}</p>
+                        <div className="flex-1 glass-subtle p-2 text-center rounded-xl">
+                            <p className="text-[10px] text-emerald-400 uppercase font-black">+ Burned</p>
+                            <p className="text-sm font-bold text-emerald-400">{Math.round(today.burned)}</p>
                         </div>
-                        <div className="glass-subtle p-2 text-center rounded-xl">
-                            <p className="text-xs text-gray-500">Deficit</p>
-                            <p className="text-sm font-bold text-amber-400">{plan.dailyDeficit}</p>
+                        <div className="flex-1 glass-subtle p-2 text-center rounded-xl border border-white/5">
+                            <p className="text-[10px] text-gray-500 uppercase">Total</p>
+                            <p className="text-sm font-bold text-white">{Math.round(totalBudget)}</p>
                         </div>
                     </div>
-                )}
-            </GlassCard>
+
+                    <p className="text-[10px] text-gray-600 mt-4 italic">Consumed {today.consumed} of {Math.round(totalBudget)} calories</p>
+
+                    {plan && (
+                        <div className="grid grid-cols-3 gap-3 mt-4 w-full max-w-sm">
+                            <div className="glass-subtle p-2 text-center rounded-xl">
+                                <p className="text-xs text-gray-500">BMR</p>
+                                <p className="text-sm font-bold text-white">{plan.bmr}</p>
+                            </div>
+                            <div className="glass-subtle p-2 text-center rounded-xl">
+                                <p className="text-xs text-gray-500">TDEE</p>
+                                <p className="text-sm font-bold text-white">{plan.tdee}</p>
+                            </div>
+                            <div className="glass-subtle p-2 text-center rounded-xl">
+                                <p className="text-xs text-gray-500">Deficit</p>
+                                <p className="text-sm font-bold text-amber-400">{plan.dailyDeficit}</p>
+                            </div>
+                        </div>
+                    )}
+                </GlassCard>
+            </motion.div>
 
             {/* Food Search & Log */}
             <GlassCard>
@@ -450,73 +465,75 @@ const SugarTracker: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <GlassCard className="flex flex-col items-center py-8" glow={overLimit ? undefined : 'purple'}>
-                <CircularProgress
-                    value={progress}
-                    size={150}
-                    strokeWidth={10}
-                    color={overLimit ? '#f43f5e' : progress > 75 ? '#f59e0b' : '#8b5cf6'}
-                    label={`${today.grams}g`}
-                    sublabel={`of ${today.target}g limit`}
-                    icon={<Candy className="w-5 h-5" style={{ color: overLimit ? '#f43f5e' : '#8b5cf6' }} />}
-                />
-
-                {/* Danger zones */}
-                <div className="flex gap-1 mt-4 w-full max-w-xs">
-                    <div className={`h-2 flex-1 rounded-l-full ${progress <= 50 ? 'bg-emerald-500' : 'bg-emerald-500/20'}`} />
-                    <div className={`h-2 flex-1 ${progress > 50 && progress <= 75 ? 'bg-amber-500' : 'bg-amber-500/20'}`} />
-                    <div className={`h-2 flex-1 rounded-r-full ${progress > 75 ? (overLimit ? 'bg-rose-500' : 'bg-rose-500/50') : 'bg-rose-500/20'}`} />
-                </div>
-                <div className="flex justify-between text-[9px] text-gray-600 w-full max-w-xs mt-1">
-                    <span>Good</span>
-                    <span>Moderate</span>
-                    <span>High</span>
-                </div>
-
-                <div className="flex items-center gap-2 mt-4">
-                    <input
-                        type="number"
-                        value={addAmount}
-                        onChange={(e) => setAddAmount(e.target.value)}
-                        placeholder="Grams..."
-                        className="input-field w-24 text-center text-sm"
+            <motion.div layoutId="tracker-card-sugar">
+                <GlassCard className="flex flex-col items-center py-8" glow={overLimit ? undefined : 'purple'}>
+                    <CircularProgress
+                        value={progress}
+                        size={150}
+                        strokeWidth={10}
+                        color={overLimit ? '#f43f5e' : progress > 75 ? '#f59e0b' : '#8b5cf6'}
+                        label={`${today.grams}g`}
+                        sublabel={`of ${today.target}g limit`}
+                        icon={<Candy className="w-5 h-5" style={{ color: overLimit ? '#f43f5e' : '#8b5cf6' }} />}
                     />
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                            const n = parseFloat(addAmount);
-                            if (n > 0) { store.removeSugar(n); setAddAmount(''); }
-                        }}
-                        disabled={!addAmount || parseFloat(addAmount) <= 0}
-                        className="btn-ghost p-3 text-rose-400 hover:bg-rose-400/10 rounded-xl"
-                        title="Subtract sugar"
-                    >
-                        <Minus className="w-5 h-5" />
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                            const n = parseFloat(addAmount);
-                            if (n > 0) { store.addSugar(n); setAddAmount(''); }
-                        }}
-                        disabled={!addAmount || parseFloat(addAmount) <= 0}
-                        className="btn-primary px-5"
-                    >
-                        <Plus className="w-4 h-4" />
-                    </motion.button>
-                </div>
-                <p className="text-xs text-gray-600 mt-2">Sugar is also tracked automatically when logging food</p>
 
-                {overLimit && (
-                    <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-rose-400 text-xs font-bold mt-2"
-                    >
-                        ⚠️ You&apos;re over your daily sugar limit!
-                    </motion.p>
-                )}
-            </GlassCard>
+                    {/* Danger zones */}
+                    <div className="flex gap-1 mt-4 w-full max-w-xs">
+                        <div className={`h-2 flex-1 rounded-l-full ${progress <= 50 ? 'bg-emerald-500' : 'bg-emerald-500/20'}`} />
+                        <div className={`h-2 flex-1 ${progress > 50 && progress <= 75 ? 'bg-amber-500' : 'bg-amber-500/20'}`} />
+                        <div className={`h-2 flex-1 rounded-r-full ${progress > 75 ? (overLimit ? 'bg-rose-500' : 'bg-rose-500/50') : 'bg-rose-500/20'}`} />
+                    </div>
+                    <div className="flex justify-between text-[9px] text-gray-600 w-full max-w-xs mt-1">
+                        <span>Good</span>
+                        <span>Moderate</span>
+                        <span>High</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-4">
+                        <input
+                            type="number"
+                            value={addAmount}
+                            onChange={(e) => setAddAmount(e.target.value)}
+                            placeholder="Grams..."
+                            className="input-field w-24 text-center text-sm"
+                        />
+                        <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                                const n = parseFloat(addAmount);
+                                if (n > 0) { store.removeSugar(n); setAddAmount(''); }
+                            }}
+                            disabled={!addAmount || parseFloat(addAmount) <= 0}
+                            className="btn-ghost p-3 text-rose-400 hover:bg-rose-400/10 rounded-xl"
+                            title="Subtract sugar"
+                        >
+                            <Minus className="w-5 h-5" />
+                        </motion.button>
+                        <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                                const n = parseFloat(addAmount);
+                                if (n > 0) { store.addSugar(n); setAddAmount(''); }
+                            }}
+                            disabled={!addAmount || parseFloat(addAmount) <= 0}
+                            className="btn-primary px-5"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </motion.button>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">Sugar is also tracked automatically when logging food</p>
+
+                    {overLimit && (
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-rose-400 text-xs font-bold mt-2"
+                        >
+                            ⚠️ You&apos;re over your daily sugar limit!
+                        </motion.p>
+                    )}
+                </GlassCard>
+            </motion.div>
         </div>
     );
 };
@@ -959,13 +976,13 @@ function HabitTrackerView() {
     );
 };
 
-function HabitCard({ habit }: { habit: any }) {
+function HabitCard({ habit }: { habit: Habit }) {
     const store = useTrackersStore();
     const streak = store.getHabitStreak(habit.id);
     const [showRelapseModal, setShowRelapseModal] = useState(false);
 
     // Smoking stats
-    const savings = habit.type === 'smoking' && habit.settings ?
+    const savings = habit.type === 'smoking' && habit.settings?.cigarettesPerDay && habit.settings?.costPerPack ?
         ((habit.settings.cigarettesPerDay / 20) * habit.settings.costPerPack * (streak.totalMinutes / 1440)).toFixed(2) : '0';
 
     return (
@@ -981,7 +998,7 @@ function HabitCard({ habit }: { habit: any }) {
                         <div>
                             <h4 className="text-base font-black text-white leading-tight">{habit.name}</h4>
                             <p className="text-[10px] text-gray-500 flex items-center gap-1 uppercase tracking-widest">
-                                <History className="w-3 h-3" /> Since {new Date(habit.startDate).toLocaleDateString()}
+                                <History className="w-3 h-3" /> Since {habit.startDate ? new Date(habit.startDate).toLocaleDateString() : 'Unknown'}
                             </p>
                         </div>
                     </div>
@@ -1011,14 +1028,14 @@ function HabitCard({ habit }: { habit: any }) {
                             <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                                 <Coins className="w-3 h-3 text-amber-500" /> Money Saved
                             </p>
-                            <p className="text-lg font-black text-white">{habit.settings.currency || '$'}{savings}</p>
+                            <p className="text-lg font-black text-white">{habit.settings?.currency || '$'}{savings}</p>
                         </div>
                         <div className="flex-1 glass-subtle p-3 rounded-2xl border border-cyan-500/10">
                             <p className="text-[9px] text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                                 <CigaretteOff className="w-3 h-3 text-cyan-500" /> Cigs Not Smoked
                             </p>
                             <p className="text-lg font-black text-white">
-                                {Math.floor((habit.settings.cigarettesPerDay * streak.totalMinutes) / 1440)}
+                                {Math.floor(((habit.settings?.cigarettesPerDay || 0) * streak.totalMinutes) / 1440)}
                             </p>
                         </div>
                     </div>

@@ -54,6 +54,13 @@ export const LeaderboardPage: React.FC = () => {
         return ACHIEVEMENTS.find(a => a.id === tId)?.title || 'Novice';
     };
 
+    const getLeagueInfo = (index: number) => {
+        if (index < 5) return { name: 'Platinum', color: 'text-cyan-300', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30 glow-cyan' };
+        if (index < 15) return { name: 'Gold', color: 'text-amber-400', bg: 'bg-amber-900/20', border: 'border-amber-500/30 glow-gold' };
+        if (index < 30) return { name: 'Silver', color: 'text-gray-300', bg: 'bg-white/5', border: 'border-gray-500/30' };
+        return { name: 'Bronze', color: 'text-orange-400', bg: 'bg-orange-900/10', border: 'border-orange-500/20' };
+    };
+
     return (
         <PageTransition className="space-y-6">
             <div>
@@ -74,27 +81,29 @@ export const LeaderboardPage: React.FC = () => {
                         No seekers found on the leaderboard yet.
                     </div>
                 ) : (
-                    <div className="divide-y divide-white/5">
+                    <div className="space-y-2 p-2">
                         {leaders.map((user, index) => {
                             const isMe = user.uid === myUid;
+                            const league = getLeagueInfo(index);
                             return (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05 }}
                                     key={user.uid}
-                                    className={`flex items-center gap-4 p-4 hover:bg-white/[0.02] transition-colors ${isMe ? 'bg-amber-500/10' : ''}`}
+                                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${league.bg} ${league.border} ${isMe ? 'shadow-[0_0_15px_rgba(251,191,36,0.3)] border-amber-400' : ''}`}
                                 >
                                     {/* Rank */}
-                                    <div className="w-8 font-black text-xl text-center flex-shrink-0">
-                                        {index === 0 ? <Medal className="w-8 h-8 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /> :
-                                            index === 1 ? <Medal className="w-7 h-7 text-gray-300 mx-auto" /> :
-                                                index === 2 ? <Medal className="w-6 h-6 text-amber-600 mx-auto" /> :
-                                                    <span className="text-gray-500">#{index + 1}</span>}
+                                    <div className="w-12 text-center flex-col items-center flex-shrink-0">
+                                        {index === 0 ? <Medal className="w-8 h-8 text-cyan-300 mx-auto drop-shadow-[0_0_8px_rgba(103,232,249,0.5)]" /> :
+                                            index === 1 ? <Medal className="w-7 h-7 text-amber-400 mx-auto" /> :
+                                                index === 2 ? <Medal className="w-6 h-6 text-orange-400 mx-auto" /> :
+                                                    <span className={`text-sm font-bold ${league.color}`}>#{index + 1}</span>}
+                                        <span className={`text-[9px] font-black uppercase tracking-widest mt-1 block ${league.color}`}>{league.name}</span>
                                     </div>
 
                                     {/* Avatar */}
-                                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-black/20 border border-white/10 flex items-center justify-center text-2xl flex-shrink-0">
                                         {user.avatar || <User className="w-6 h-6 text-gray-400" />}
                                     </div>
 

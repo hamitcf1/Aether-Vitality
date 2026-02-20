@@ -2,7 +2,7 @@ import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ProgressBar } from './ProgressBar';
-import type { Quest } from '../../store/aetherStore';
+import type { QuestData as Quest } from '../../lib/firebaseTypes';
 
 interface QuestCardProps {
     quest: Quest;

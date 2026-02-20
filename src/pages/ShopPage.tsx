@@ -10,7 +10,7 @@ export const ShopPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<ShopCategory | 'all'>('all');
     const [purchaseStatus, setPurchaseStatus] = useState<{ id: string, status: 'success' | 'error' } | null>(null);
 
-    const categories: { id: ShopCategory | 'all', label: string, icon: any }[] = [
+    const categories: { id: ShopCategory | 'all', label: string, icon: React.ElementType }[] = [
         { id: 'all', label: 'All Items', icon: ShoppingBag },
         { id: 'theme', label: 'Themes', icon: Palette },
         { id: 'boost', label: 'Boosts', icon: Zap },

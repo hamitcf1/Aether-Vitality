@@ -152,7 +152,7 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
 
                     // Save to global Firestore DB
                     const safeId = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-                    const safeCategory = ['fruit', 'vegetable', 'protein', 'grain', 'dairy', 'snack', 'drink', 'fast-food', 'meal'].includes(item.category || '') ? item.category : 'meal';
+                    const safeCategory = (['fruit', 'vegetable', 'protein', 'grain', 'dairy', 'snack', 'drink', 'fast-food', 'meal'].includes(item.category || '') ? item.category : 'meal') as NonNullable<FoodAnalysis['category']>;
 
                     if (safeId) {
                         addFoodToGlobalDB({
@@ -165,7 +165,7 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
                             carbs: Number(item.carbs) || 0,
                             fat: Number(item.fat) || 0,
                             servingSize: item.servingSize ?? '1 serving',
-                            category: safeCategory as any,
+                            category: safeCategory as NonNullable<FoodAnalysis['category']>,
                         });
                     }
                 }
@@ -207,7 +207,7 @@ export async function validateFoodInput(text: string): Promise<{ isFood: boolean
     try {
         const result = await aiGenerateJSON<{ isFood: boolean; reason: string }>({ prompt, temperature: 0.1 });
         return result || { isFood: true, reason: 'Validation passed' };
-    } catch (e) {
+    } catch {
         return { isFood: true, reason: 'Validation error, allowing' };
     }
 }

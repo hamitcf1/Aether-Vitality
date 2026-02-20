@@ -1,0 +1,5 @@
+﻿src/components/social/GuildChat.tsx(88,62): error TS2339: Property 'toDate' does not exist on type 'number'.
+src/components/social/GuildChat.tsx(88,85): error TS2339: Property 'toDate' does not exist on type 'number'.
+src/components/ui/QuestCard.tsx(5,15): error TS2459: Module '"../../store/aetherStore"' declares 'Quest' locally, but it is not exported.
+src/pages/ProfilePage.tsx(12,10): error TS2724: '"../components/ui/CustomCursor"' has no exported member named 'getCursorEnabled'. Did you mean 'setCursorEnabled'?
+src/pages/TrackersPage.tsx(18,15): error TS2305: Module '"../store/trackersStore"' has no exported member 'Habit'.
