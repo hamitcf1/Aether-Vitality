@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Heart, Zap, Star, Flame, MessageCircle, Plus, X,
-    TrendingUp, Trophy, Target, UtensilsCrossed, Droplets,
+    TrendingUp, Target, UtensilsCrossed, Droplets,
     Footprints, Candy, Sparkles, Shield, CigaretteOff, Ban
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -17,7 +17,7 @@ import { MiniTracker } from '../components/ui/MiniTracker';
 import { useAetherStore } from '../store/aetherStore';
 import { useTrackersStore } from '../store/trackersStore';
 import { useGreeting } from '../hooks/useGreeting';
-import { getXPProgress, getXPForNextLevel, ACHIEVEMENTS } from '../lib/achievements';
+import { getXPProgress, getXPForNextLevel } from '../lib/achievements';
 import { getAlchemistAdvice } from '../lib/gemini';
 import { getDailyInsight } from '../lib/aiInsights';
 import { analyzeMeal, calculateHealthImpact, validateFoodInput } from '../lib/aiFoodAnalyzer';
@@ -43,7 +43,7 @@ export const DashboardPage: React.FC = () => {
     const hpHistory = useAetherStore((s) => s.hpHistory);
     const generateDailyQuests = useAetherStore((s) => s.generateDailyQuests);
     const updateStreak = useAetherStore((s) => s.updateStreak);
-    const checkAchievements = useAetherStore((s) => s.checkAchievements);
+
     const logMeal = useAetherStore((s) => s.logMeal);
     const updateQuestProgress = useAetherStore((s) => s.updateQuestProgress);
     const completeQuest = useAetherStore((s) => s.completeQuest);
@@ -61,7 +61,7 @@ export const DashboardPage: React.FC = () => {
     const [showMealModal, setShowMealModal] = useState(false);
     const [mealInput, setMealInput] = useState('');
     const [isLogging, setIsLogging] = useState(false);
-    const [newAchievements, setNewAchievements] = useState<string[]>([]);
+
     const [aiInsight, setAiInsight] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -110,16 +110,7 @@ export const DashboardPage: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Check achievements
-    useEffect(() => {
-        const unlocked = checkAchievements();
-        if (unlocked.length > 0) {
-            setNewAchievements(unlocked);
-            const timer = setTimeout(() => setNewAchievements([]), 5000);
-            return () => clearTimeout(timer);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mealsLogged, questsCompleted, streak, level]);
+    // (Check achievements globally handled in GamificationOverlay)
 
     const { addToast } = useToast();
     const { play } = useSound();
@@ -129,88 +120,114 @@ export const DashboardPage: React.FC = () => {
         play('click');
         setIsLogging(true);
         setValidationError(null);
+
         try {
-            // Validate input first
-            const validation = await validateFoodInput(mealInput);
-            if (!validation.isFood) {
-                setValidationError(validation.reason);
-                addToast(validation.reason, 'error');
+            // Split by newlines, process non-empty lines
+            const mealLines = mealInput.split('\n').map(l => l.trim()).filter(Boolean);
+            if (mealLines.length === 0) {
+                setIsLogging(false);
+                return;
+            }
+
+            let totalHpImpact = 0;
+            let successCount = 0;
+            let wasNutritionTracked = false;
+            let combinedAdvice: string[] = [];
+
+            for (const line of mealLines) {
+                // Validate input first
+                const validation = await validateFoodInput(line);
+                if (!validation.isFood) {
+                    addToast(`Skipped "${line}": ${validation.reason}`, 'error');
+                    continue; // Skip invalid lines, but keep processing others
+                }
+
+                // Try AI-powered meal analysis
+                const mealAnalysis = await analyzeMeal(line);
+                let currentHpImpact: number;
+                let currentAdvice: string;
+
+                if (mealAnalysis) {
+                    wasNutritionTracked = true;
+                    const impact = calculateHealthImpact(mealAnalysis.healthScore);
+                    currentHpImpact = impact.hpImpact;
+                    currentAdvice = mealAnalysis.advice;
+
+                    // Also log individual items with their specific portions
+                    if (mealAnalysis.items && mealAnalysis.items.length > 0) {
+                        mealAnalysis.items.forEach(item => {
+                            addFood({
+                                foodId: `meal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                                name: item.name,
+                                emoji: item.emoji || '🍽️',
+                                calories: item.calories,
+                                sugar: item.sugar,
+                                protein: item.protein,
+                                carbs: item.carbs,
+                                fat: item.fat,
+                                servings: item.quantity || 1,
+                            });
+                        });
+                    } else if (mealAnalysis.totalCalories > 0) {
+                        // Fallback for aggregate only
+                        addFood({
+                            foodId: `meal_${Date.now()}`,
+                            name: line,
+                            emoji: '🍽️',
+                            calories: mealAnalysis.totalCalories,
+                            sugar: mealAnalysis.totalSugar,
+                            protein: mealAnalysis.totalProtein,
+                            carbs: mealAnalysis.totalCarbs,
+                            fat: mealAnalysis.totalFat,
+                            servings: 1,
+                        });
+                    }
+                } else {
+                    // Fallback to old method
+                    const profileStr = `Goal: ${profile?.healthGoal}, Difficulty: ${profile?.difficulty}, HP: ${hp}`;
+                    currentAdvice = await getAlchemistAdvice(line, profileStr);
+                    const positive = /healthy|green|salad|fish|chicken|fruit|vegetable|water|soup|oat/i.test(line);
+                    currentHpImpact = positive ? Math.floor(Math.random() * 10 + 5) : -Math.floor(Math.random() * 10 + 3);
+                }
+
+                totalHpImpact += currentHpImpact;
+                combinedAdvice.push(currentAdvice);
+                successCount++;
+            }
+
+            if (successCount === 0) {
+                setValidationError('None of the lines provided were valid foods.');
                 play('error');
                 setIsLogging(false);
                 return;
             }
 
-            // Try AI-powered meal analysis
-            const mealAnalysis = await analyzeMeal(mealInput);
-
-            let hpImpact: number;
-            let advice: string;
-
-            let wasNutritionTracked = false;
-
-            if (mealAnalysis) {
-                wasNutritionTracked = true;
-                const impact = calculateHealthImpact(mealAnalysis.healthScore);
-                hpImpact = impact.hpImpact;
-                advice = mealAnalysis.advice;
-
-                // Also log individual items with their specific portions
-                if (mealAnalysis.items && mealAnalysis.items.length > 0) {
-                    mealAnalysis.items.forEach(item => {
-                        addFood({
-                            foodId: `meal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-                            name: item.name,
-                            emoji: item.emoji || '🍽️',
-                            calories: item.calories, // AI returns calories per unit/serving
-                            sugar: item.sugar,
-                            protein: item.protein,
-                            carbs: item.carbs,
-                            fat: item.fat,
-                            servings: item.quantity || 1,
-                        });
-                    });
-                } else if (mealAnalysis.totalCalories > 0) {
-                    // Fallback for aggregate only
-                    addFood({
-                        foodId: `meal_${Date.now()}`,
-                        name: mealInput,
-                        emoji: '🍽️',
-                        calories: mealAnalysis.totalCalories,
-                        sugar: mealAnalysis.totalSugar,
-                        protein: mealAnalysis.totalProtein,
-                        carbs: mealAnalysis.totalCarbs,
-                        fat: mealAnalysis.totalFat,
-                        servings: 1,
-                    });
-                }
-            } else {
-                // Fallback to old method
-                const profileStr = `Goal: ${profile?.healthGoal}, Difficulty: ${profile?.difficulty}, HP: ${hp}`;
-                advice = await getAlchemistAdvice(mealInput, profileStr);
-                const positive = /healthy|green|salad|fish|chicken|fruit|vegetable|water|soup|oat/i.test(mealInput);
-                hpImpact = positive ? Math.floor(Math.random() * 10 + 5) : -Math.floor(Math.random() * 10 + 3);
-            }
-
-            logMeal(mealInput, hpImpact, advice);
+            // Log single combined meal entry to history
+            const compositeAdvice = combinedAdvice.join(' ');
+            logMeal(
+                mealLines.length > 1 ? `${mealLines.length} items logged` : mealLines[0],
+                totalHpImpact,
+                compositeAdvice
+            );
 
             // Update quest progress for meal logging
             quests.forEach((q) => {
                 if (q.title === 'Substance Analysis' && !q.completed) {
-                    updateQuestProgress(q.id, q.progress + 1);
+                    updateQuestProgress(q.id, q.progress + successCount);
                 }
             });
 
             if (wasNutritionTracked) {
-                addToast('Sustenance recorded and nutrition analyzed.', 'success');
+                addToast(`Successfully tracked ${successCount} ${successCount === 1 ? 'item' : 'items'}.`, 'success');
             } else {
-                addToast('Sustenance recorded, but nutrition analysis failed.', 'error');
+                addToast(`Logged ${successCount} ${successCount === 1 ? 'item' : 'items'}, but nutrition analysis failed.`, 'error');
             }
             play('success');
 
             setMealInput('');
             setShowMealModal(false);
         } catch {
-            addToast('Failed to analyze sustenance.', 'error');
+            addToast('Failed to process sustenance.', 'error');
             play('error');
         }
         setIsLogging(false);
@@ -218,25 +235,7 @@ export const DashboardPage: React.FC = () => {
 
     return (
         <PageTransition className="space-y-6">
-            {/* Achievement Toast */}
-            <AnimatePresence>
-                {newAchievements.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 glass border-emerald-500/20 glow-emerald px-6 py-4 flex items-center gap-3"
-                    >
-                        <Trophy className="w-6 h-6 text-amber-400" />
-                        <div>
-                            <p className="text-sm font-bold text-white">Achievement Unlocked!</p>
-                            <p className="text-xs text-gray-400">
-                                {newAchievements.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.title).join(', ')}
-                            </p>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Global GamificationOverlay handles Achievement Toasts now */}
 
             {/* Hero Greeting */}
             <div className="flex items-start justify-between">
@@ -517,7 +516,7 @@ export const DashboardPage: React.FC = () => {
                             </div>
                             <p className="text-sm text-gray-500 mb-2">What did you consume, Seeker?</p>
                             <p className="text-xs text-emerald-400/60 mb-4 flex items-center gap-1">
-                                <Sparkles className="w-3 h-3" /> AI will analyze nutrition & cache results
+                                <Sparkles className="w-3 h-3" /> Separate multiple items with newlines
                             </p>
                             <textarea
                                 value={mealInput}
@@ -525,8 +524,8 @@ export const DashboardPage: React.FC = () => {
                                     setMealInput(e.target.value);
                                     if (validationError) setValidationError(null);
                                 }}
-                                placeholder="e.g. Grilled salmon with steamed broccoli and brown rice..."
-                                className={`input-field min-h-[100px] resize-none mb-4 ${validationError ? 'border-rose-500/50 bg-rose-500/5' : ''}`}
+                                placeholder="e.g.&#10;Grilled salmon with broccoli&#10;2 cups of black coffee&#10;1 banana"
+                                className={`input-field min-h-[120px] resize-none mb-4 ${validationError ? 'border-rose-500/50 bg-rose-500/5' : ''}`}
                                 autoFocus
                             />
 

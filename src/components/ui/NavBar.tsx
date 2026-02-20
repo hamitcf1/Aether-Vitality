@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield, Trophy } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useUserStore } from '../../store/userStore';
 
@@ -13,6 +13,7 @@ const navItems = [
     { path: '/meditation', icon: Wind, label: 'Meditation' },
     { path: '/chat', icon: MessageCircle, label: 'Alchemist' },
     { path: '/guilds', icon: Shield, label: 'Guilds' },
+    { path: '/leaderboard', icon: Trophy, label: 'Leaders' },
     { path: '/profile', icon: User, label: 'Profile' },
 ];
 

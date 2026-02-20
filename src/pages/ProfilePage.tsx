@@ -174,6 +174,22 @@ export const ProfilePage: React.FC = () => {
                             </button>
                         ))}
                     </div>
+
+                    {/* Title Selector */}
+                    <div className="mt-3">
+                        <select
+                            value={store.equipped?.title || 'Novice'}
+                            onChange={(e) => store.equipItem(e.target.value, 'title')}
+                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-black uppercase tracking-[0.2em] focus:outline-none focus:border-emerald-500/50 cursor-pointer text-center"
+                        >
+                            <option value="Novice">Novice</option>
+                            {store.unlockedAchievements.map(id => {
+                                const ach = ACHIEVEMENTS.find(a => a.id === id);
+                                if (!ach) return null;
+                                return <option key={id} value={id}>{ach.title}</option>
+                            })}
+                        </select>
+                    </div>
                 </div>
             </GlassCard>
 

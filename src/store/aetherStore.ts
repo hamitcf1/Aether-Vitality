@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { getLevelFromXP, ACHIEVEMENTS } from '../lib/achievements';
 import { format } from 'date-fns';
-import { saveToFirestore, saveToFirestoreImmediate, loadFromFirestore } from '../lib/firestoreSync';
+import { saveToFirestore, saveToFirestoreImmediate, loadFromFirestore, syncToLeaderboard, removeFromLeaderboard } from '../lib/firestoreSync';
 import { SHOP_ITEMS } from '../lib/ShopData';
 
 // ── Types ──
@@ -66,6 +66,7 @@ export interface UserProfile {
 export interface EquippedItems {
     theme: string;
     frame: string;
+    title: string;
 }
 
 export interface ActiveBoost {
@@ -152,7 +153,7 @@ interface AetherState {
     // Actions — Economy
     addCoins: (amount: number) => void;
     purchaseItem: (itemId: string) => boolean;
-    equipItem: (itemId: string, category: 'theme' | 'frame') => void;
+    equipItem: (itemId: string, category: 'theme' | 'frame' | 'title') => void;
     checkBoosts: () => void;
 }
 
@@ -192,6 +193,18 @@ function autoSave(get: () => AetherState) {
     const state = get();
     if (state._uid) {
         saveToFirestore(state._uid, 'aether', getDataSnapshot(state));
+
+        if (state.profile?.isPublic !== false) {
+            syncToLeaderboard(state._uid, {
+                name: state.profile?.name || 'Unknown',
+                avatar: state.profile?.avatar || '🧙',
+                level: state.level,
+                xp: state.xp,
+                title: state.equipped?.title || 'Novice',
+            });
+        } else {
+            removeFromLeaderboard(state._uid);
+        }
     }
 }
 
@@ -220,7 +233,7 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     isAILoading: false,
     coins: 0,
     inventory: [],
-    equipped: { theme: 'default', frame: 'none' },
+    equipped: { theme: 'default', frame: 'none', title: 'Novice' },
     activeBoosts: [],
 
     // Firestore
@@ -242,7 +255,13 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
             if (data.coins === undefined && currentXP > 0) {
                 patch.coins = Math.floor(currentXP * 0.5);
                 patch.inventory = [];
-                patch.equipped = { theme: 'default', frame: 'none' };
+            }
+
+            // Ensure title exists in equipped
+            if (data.equipped) {
+                patch.equipped = { ...data.equipped, title: (data.equipped as any).title || 'Novice' };
+            } else {
+                patch.equipped = { theme: 'default', frame: 'none', title: 'Novice' };
             }
 
             set(patch as Partial<AetherState>);
@@ -494,6 +513,15 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     },
     equipItem: (itemId, category) => {
         const state = get();
+
+        if (category === 'title') {
+            if (itemId === 'Novice' || state.unlockedAchievements.includes(itemId)) {
+                set(s => ({ equipped: { ...s.equipped, title: itemId } }));
+                autoSave(get);
+            }
+            return;
+        }
+
         // Verify ownership
         if (!state.inventory.includes(itemId) && itemId !== 'default') return;
 

@@ -5,6 +5,7 @@ import { GlassCard } from '../ui/GlassCard';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type { UserProfile, EquippedItems } from '../../store/aetherStore';
+import { ACHIEVEMENTS } from '../../lib/achievements';
 
 interface HeroCardProps {
     userId: string;
@@ -102,6 +103,15 @@ export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) =
                                         <h2 className="text-2xl font-black text-white text-center">
                                             {data.profile.name || 'Unknown Hero'}
                                         </h2>
+                                        <div className="text-emerald-400 text-xs font-black uppercase tracking-[0.2em] mt-1 text-center">
+                                            {
+                                                (() => {
+                                                    const tId = data.equipped?.title || 'Novice';
+                                                    if (tId === 'Novice') return 'Novice';
+                                                    return ACHIEVEMENTS.find(a => a.id === tId)?.title || 'Novice';
+                                                })()
+                                            }
+                                        </div>
                                         {data.profile.bio && (
                                             <p className="text-sm text-gray-400 mt-2 text-center max-w-[80%] italic">
                                                 "{data.profile.bio}"

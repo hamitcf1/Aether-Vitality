@@ -6,6 +6,7 @@ import { useAetherStore } from './store/aetherStore';
 import { useAuthStore } from './store/authStore';
 import { CustomCursor } from './components/ui/CustomCursor';
 import { DashboardLayout } from './components/layout/DashboardLayout';
+import { GamificationOverlay } from './components/ui/GamificationOverlay';
 
 // Lazy Load Pages
 const LandingPage = lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
@@ -30,6 +31,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ d
 const GuildsPage = lazy(() => import('./pages/social/GuildsPage').then(module => ({ default: module.GuildsPage })));
 const ShopPage = lazy(() => import('./pages/ShopPage').then(module => ({ default: module.ShopPage })));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage').then(module => ({ default: module.LeaderboardPage })));
 
 import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
@@ -113,7 +115,7 @@ const App: React.FC = () => {
             </Route>
 
             {/* Protected Routes */}
-            <Route element={user ? <DashboardLayout /> : <Navigate to="/login" replace />}>
+            <Route element={user ? <><GamificationOverlay /><DashboardLayout /></> : <Navigate to="/login" replace />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/trackers" element={<TrackersPage />} />
 
@@ -140,6 +142,7 @@ const App: React.FC = () => {
               <Route path="/guilds" element={<GuildsPage />} />
               <Route path="/shop" element={<ShopPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

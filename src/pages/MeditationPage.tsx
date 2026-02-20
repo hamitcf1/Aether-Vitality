@@ -1,25 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wind, Play, Square, Clock } from 'lucide-react';
+import { Wind, Play, Square, Clock, Settings2 } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { useJournalStore } from '../store/journalStore';
+
+type BreathingPreset = 'calm' | 'awake' | 'box';
+type Phase = 'inhale' | 'hold1' | 'exhale' | 'hold2';
+
+const PRESETS: Record<BreathingPreset, { name: string; inhale: number; hold1: number; exhale: number; hold2: number }> = {
+    calm: { name: 'Calm (4-7-8)', inhale: 4, hold1: 7, exhale: 8, hold2: 0 },
+    awake: { name: 'Awake (6-0-2)', inhale: 6, hold1: 0, exhale: 2, hold2: 0 },
+    box: { name: 'Box (4-4-4-4)', inhale: 4, hold1: 4, exhale: 4, hold2: 4 },
+};
 
 export const MeditationPage: React.FC = () => {
     const store = useJournalStore();
     const [isActive, setIsActive] = useState(false);
     const [duration, setDuration] = useState(60); // seconds
     const [timeLeft, setTimeLeft] = useState(60);
-    const [phase, setPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
+    const [preset, setPreset] = useState<BreathingPreset>('calm');
+    const [phase, setPhase] = useState<Phase>('inhale');
 
-    // Timer logic
+    // Timer logic - Countdown
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (isActive && timeLeft > 0) {
             interval = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
+                setTimeLeft((prev) => Math.max(0, prev - 1));
             }, 1000);
-        } else if (timeLeft === 0 && isActive) {
+        }
+        return () => clearInterval(interval);
+    }, [isActive]);
+
+    // Timer logic - Completion
+    useEffect(() => {
+        if (isActive && timeLeft === 0) {
             setIsActive(false);
             store.logMeditation({
                 date: new Date().toISOString(),
@@ -27,38 +43,47 @@ export const MeditationPage: React.FC = () => {
                 type: 'breathing',
             });
         }
-        return () => clearInterval(interval);
     }, [isActive, timeLeft, duration, store]);
 
-    // Breathing animation phase logic (4-7-8 technique simulation)
+    // Breathing animation phase logic
     useEffect(() => {
         if (!isActive) return;
+        let active = true;
 
-        const cycle = 19000; // 4s inhale + 7s hold + 8s exhale = 19s
-        const inhaleTime = 4000;
-        const holdTime = 7000;
+        const p = PRESETS[preset];
+        const cycle = (p.inhale + p.hold1 + p.exhale + p.hold2) * 1000;
 
-        const loop = setInterval(() => {
+        let t1: NodeJS.Timeout, t2: NodeJS.Timeout, t3: NodeJS.Timeout;
+
+        const runCycle = () => {
+            if (!active) return;
             setPhase('inhale');
-            setTimeout(() => {
-                if (isActive) setPhase('hold');
-                setTimeout(() => {
-                    if (isActive) setPhase('exhale');
-                }, holdTime);
-            }, inhaleTime);
-        }, cycle);
 
-        // Initial start
-        setPhase('inhale');
-        setTimeout(() => {
-            if (isActive) setPhase('hold');
-            setTimeout(() => {
-                if (isActive) setPhase('exhale');
-            }, holdTime);
-        }, inhaleTime);
+            let nextTime = p.inhale * 1000;
+            if (p.hold1 > 0) {
+                t1 = setTimeout(() => { if (active) setPhase('hold1') }, nextTime);
+                nextTime += p.hold1 * 1000;
+            }
 
-        return () => clearInterval(loop);
-    }, [isActive]);
+            t2 = setTimeout(() => { if (active) setPhase('exhale') }, nextTime);
+            nextTime += p.exhale * 1000;
+
+            if (p.hold2 > 0) {
+                t3 = setTimeout(() => { if (active) setPhase('hold2') }, nextTime);
+            }
+        };
+
+        const loop = setInterval(runCycle, cycle);
+        runCycle();
+
+        return () => {
+            active = false;
+            clearInterval(loop);
+            clearTimeout(t1);
+            clearTimeout(t2);
+            clearTimeout(t3);
+        };
+    }, [isActive, preset]);
 
     const handleStart = () => {
         setTimeLeft(duration);
@@ -73,16 +98,28 @@ export const MeditationPage: React.FC = () => {
     const getPhaseText = () => {
         switch (phase) {
             case 'inhale': return 'Inhale...';
-            case 'hold': return 'Hold...';
+            case 'hold1': return 'Hold...';
             case 'exhale': return 'Exhale...';
+            case 'hold2': return 'Hold...';
         }
     };
 
     const getCircleScale = () => {
         switch (phase) {
             case 'inhale': return 1.5;
-            case 'hold': return 1.5;
+            case 'hold1': return 1.5;
             case 'exhale': return 1;
+            case 'hold2': return 1;
+        }
+    };
+
+    const getPhaseDuration = () => {
+        const p = PRESETS[preset];
+        switch (phase) {
+            case 'inhale': return p.inhale;
+            case 'hold1': return p.hold1;
+            case 'exhale': return p.exhale;
+            case 'hold2': return p.hold2;
         }
     };
 
@@ -105,7 +142,7 @@ export const MeditationPage: React.FC = () => {
                                 opacity: isActive ? 0.8 : 0.3,
                             }}
                             transition={{
-                                duration: phase === 'inhale' ? 4 : phase === 'exhale' ? 8 : 0,
+                                duration: getPhaseDuration(),
                                 ease: 'easeInOut'
                             }}
                             className="w-48 h-48 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-500 blur-2xl absolute"
@@ -115,7 +152,7 @@ export const MeditationPage: React.FC = () => {
                                 scale: isActive ? getCircleScale() : 1,
                             }}
                             transition={{
-                                duration: phase === 'inhale' ? 4 : phase === 'exhale' ? 8 : 0,
+                                duration: getPhaseDuration(),
                                 ease: 'easeInOut'
                             }}
                             className="w-40 h-40 rounded-full border-2 border-sky-200/50 flex items-center justify-center z-10 backdrop-blur-sm"
@@ -153,6 +190,26 @@ export const MeditationPage: React.FC = () => {
                             <Clock className="w-4 h-4 text-sky-400" /> Settings
                         </h3>
                         <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-500 mb-2 block flex items-center gap-1">
+                                    <Settings2 className="w-3 h-3" /> Technique
+                                </label>
+                                <div className="grid grid-cols-1 gap-2 mb-4">
+                                    {(Object.keys(PRESETS) as BreathingPreset[]).map((pKey) => (
+                                        <button
+                                            key={pKey}
+                                            onClick={() => { setPreset(pKey); setIsActive(false); }}
+                                            className={`p-2 rounded-lg text-sm font-medium transition-all text-left ${preset === pKey
+                                                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                }`}
+                                        >
+                                            {PRESETS[pKey].name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="text-xs text-gray-500 mb-2 block">Duration</label>
                                 <div className="grid grid-cols-3 gap-2">

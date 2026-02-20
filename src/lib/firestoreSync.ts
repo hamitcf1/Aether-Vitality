@@ -5,7 +5,7 @@
  * backed by Firestore under users/{uid}/data/{docName}.
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 // ── Pending save queue ──
@@ -104,4 +104,47 @@ export function flushPendingSaves(): void {
         writeSave(save.uid, save.docName, save.data);
     });
     pending.clear();
+}
+
+// ── Leaderboard Sync ──
+const pendingLeaderboard = new Map<string, ReturnType<typeof setTimeout>>();
+
+export function syncToLeaderboard(uid: string, data: {
+    name: string;
+    avatar: string;
+    level: number;
+    xp: number;
+    title: string;
+}) {
+    const existing = pendingLeaderboard.get(uid);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(async () => {
+        pendingLeaderboard.delete(uid);
+        try {
+            const ref = doc(db, 'global_leaderboard', uid);
+            await setDoc(ref, {
+                ...data,
+                _updatedAt: Date.now()
+            }, { merge: true });
+        } catch (err) {
+            console.error(`[firestoreSync] Failed to sync leaderboard:`, err);
+        }
+    }, 5000);
+
+    pendingLeaderboard.set(uid, timer);
+}
+
+export async function removeFromLeaderboard(uid: string) {
+    try {
+        const existing = pendingLeaderboard.get(uid);
+        if (existing) {
+            clearTimeout(existing);
+            pendingLeaderboard.delete(uid);
+        }
+        const ref = doc(db, 'global_leaderboard', uid);
+        await deleteDoc(ref);
+    } catch (err) {
+        console.error(`[firestoreSync] Failed to remove from leaderboard:`, err);
+    }
 }
