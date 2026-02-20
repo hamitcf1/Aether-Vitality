@@ -32,6 +32,7 @@ export const AI_MODELS = [
 
 let clientPool: { client: GoogleGenAI; keyIndex: number }[] = [];
 let poolInitialized = false;
+let activeClientIndex = 0;
 
 function initClientPool(): void {
     if (poolInitialized) return;
@@ -73,6 +74,7 @@ function initClientPool(): void {
 export function resetClientPool(): void {
     poolInitialized = false;
     clientPool = [];
+    activeClientIndex = 0;
 }
 
 // ── Rate Limiter ──
@@ -106,7 +108,9 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
             lastError = err;
             const errMsg = err instanceof Error ? err.message : String(err);
             // Don't retry on auth or permission errors
-            if (/api.key|permission|forbidden|invalid/i.test(errMsg)) throw err;
+            if (/api\.key|permission|forbidden|invalid/i.test(errMsg)) throw err;
+            // DON'T RETRY on quota exhaustion to fast-fail and rotate to a new key
+            if (/quota|exhausted|429/i.test(errMsg)) throw err;
             // Exponential backoff
             if (attempt < retries - 1) {
                 await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
@@ -145,8 +149,11 @@ export async function aiGenerate(request: AIRequest): Promise<AIResponse | null>
 
     const model = request.model ?? store.preferredModel;
 
-    // Try each client in the pool
-    for (const { client, keyIndex } of clientPool) {
+    // Try each client in the pool, starting from activeClientIndex
+    for (let offset = 0; offset < clientPool.length; offset++) {
+        const tryIndex = (activeClientIndex + offset) % clientPool.length;
+        const { client, keyIndex } = clientPool[tryIndex];
+
         try {
             const result = await withRetry(async () => {
                 const response = await client.models.generateContent({
@@ -176,9 +183,12 @@ export async function aiGenerate(request: AIRequest): Promise<AIResponse | null>
                 cached: false,
             });
 
+            // Keep using this working key for future requests
+            activeClientIndex = tryIndex;
+
             return { text, tokensUsed: { input: tokensInput, output: tokensOutput }, model, keyIndex };
         } catch (err) {
-            console.warn(`[AI] Key ${keyIndex} failed:`, err);
+            console.warn(`[AI] Key at pool index ${tryIndex} (store id: ${keyIndex}) failed:`, err);
             continue; // Try next key
         }
     }
