@@ -103,12 +103,16 @@ export function SleepTracker() {
             </div>
 
             <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={existingLog ? {} : { scale: 1.02 }}
+                whileTap={existingLog ? {} : { scale: 0.98 }}
                 onClick={handleSave}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/20 transition-colors"
+                disabled={!!existingLog}
+                className={`w-full py-3 rounded-xl font-medium shadow-lg transition-colors ${existingLog
+                    ? 'bg-indigo-500/50 text-white/70 cursor-not-allowed shadow-none'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'
+                    }`}
             >
-                Log Sleep
+                {existingLog ? 'Sleep Logged for Today' : 'Log Sleep'}
             </motion.button>
         </div>
     );

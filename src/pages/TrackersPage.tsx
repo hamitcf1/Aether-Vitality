@@ -6,7 +6,7 @@ import {
     Activity, Dumbbell, Clock,
     Shield, Ban, Coins, Cigarette, CigaretteOff, History
 } from 'lucide-react';
-import { format, subDays, parseISO } from 'date-fns';
+import { format, parseISO, startOfWeek, addDays } from 'date-fns';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { TabBar } from '../components/ui/TabBar';
@@ -16,7 +16,7 @@ import { FoodSearch } from '../components/ui/FoodSearch';
 import { useTrackersStore } from '../store/trackersStore';
 import { calculateBMI, getHealthyWeightRange } from '../lib/bmiCalculator';
 import { getCaloriePlan } from '../lib/calorieCalculator';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import type { FoodItem } from '../lib/foodDatabase';
 import { SleepTracker } from '../components/trackers/SleepTracker';
 import { BodyMetrics } from '../components/trackers/BodyMetrics';
@@ -76,9 +76,10 @@ const WaterTracker: React.FC = () => {
     const today = store.getTodayWater();
     const progress = Math.min(100, (today.glasses / today.target) * 100);
 
-    // Generate last 7 days data
+    // Generate current week data (Monday - Sunday)
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekData = Array.from({ length: 7 }, (_, i) => {
-        const d = subDays(new Date(), 6 - i);
+        const d = addDays(weekStart, i);
         const dateStr = format(d, 'yyyy-MM-dd');
         const log = store.waterLogs.find(l => l.date === dateStr);
         return {
@@ -148,21 +149,26 @@ const WaterTracker: React.FC = () => {
                 <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                     <Droplets className="w-4 h-4 text-cyan-400" /> This Week
                 </h3>
-                <div className="flex items-end gap-2 h-24">
+                <div className="flex justify-between items-end gap-2 mt-4 px-2">
                     {weekData.map((day, i) => {
-                        const pct = Math.min(100, (day.glasses / day.target) * 100);
+                        const pct = Math.min(100, (day.glasses / day.target) * 100) || 0;
+                        const isToday = day.date === format(new Date(), 'yyyy-MM-dd');
                         return (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                <div className="w-full bg-white/[0.04] rounded-full overflow-hidden h-16 relative">
+                            <div key={i} className="flex flex-col items-center gap-2">
+                                <div className="w-6 sm:w-8 bg-white/[0.04] rounded-full overflow-hidden h-24 relative shadow-inner">
                                     <motion.div
-                                        className="absolute bottom-0 w-full rounded-full bg-gradient-to-t from-cyan-500 to-cyan-400"
+                                        className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-cyan-600 to-cyan-400"
                                         initial={{ height: 0 }}
                                         animate={{ height: `${pct}%` }}
                                         transition={{ delay: i * 0.05, duration: 0.5 }}
                                     />
                                 </div>
-                                <span className="text-[9px] text-gray-600 font-medium">{day.dayName}</span>
-                                <span className="text-[9px] text-gray-500">{day.glasses}</span>
+                                <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-cyan-400' : 'text-gray-500'}`}>
+                                    {day.dayName.charAt(0)}
+                                </span>
+                                <span className={`text-[10px] ${isToday ? 'text-white font-bold' : 'text-gray-600'}`}>
+                                    {day.glasses}
+                                </span>
                             </div>
                         );
                     })}
@@ -246,29 +252,47 @@ const StepsTracker: React.FC = () => {
                 )}
             </GlassCard>
 
-            {/* Weekly bar chart */}
-            {store.stepsLogs.length > 0 && (
-                <GlassCard>
-                    <h3 className="text-sm font-bold text-white mb-3">Weekly Steps</h3>
-                    <ResponsiveContainer width="100%" height={140}>
-                        <BarChart data={store.stepsLogs.slice(-7)}>
-                            <XAxis
-                                dataKey="date"
-                                tick={{ fontSize: 9, fill: '#525252' }}
-                                axisLine={false}
-                                tickLine={false}
-                                tickFormatter={(v) => format(parseISO(v), 'EEE')}
-                            />
-                            <YAxis tick={{ fontSize: 9, fill: '#525252' }} axisLine={false} tickLine={false} />
-                            <Tooltip
-                                contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }}
-                                labelFormatter={(v) => format(parseISO(v), 'PPP')}
-                            />
-                            <Bar dataKey="steps" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </GlassCard>
-            )}
+            {/* Weekly Timeline */}
+            <GlassCard>
+                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                    <Footprints className="w-4 h-4 text-emerald-400" /> This Week
+                </h3>
+
+                <div className="flex justify-between items-end gap-2 mt-4 px-2">
+                    {Array.from({ length: 7 }, (_, i) => {
+                        const d = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
+                        const dateStr = format(d, 'yyyy-MM-dd');
+                        const log = store.stepsLogs.find(l => l.date === dateStr);
+                        const steps = log?.steps || 0;
+                        const target = log?.target || 10000;
+                        const pct = Math.min(100, (steps / target) * 100) || 0;
+                        const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
+                        const cals = Math.round(store.calorieLogs.find(l => l.date === dateStr)?.burned || 0);
+
+                        return (
+                            <div key={i} className="flex flex-col items-center gap-2">
+                                <div className="text-[9px] text-amber-400 font-bold mb-1">
+                                    {cals > 0 ? `${cals} 🔥` : ''}
+                                </div>
+                                <div className="w-6 sm:w-8 bg-white/[0.04] rounded-full overflow-hidden h-24 relative shadow-inner">
+                                    <motion.div
+                                        className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-emerald-600 to-emerald-400"
+                                        initial={{ height: 0 }}
+                                        animate={{ height: `${pct}%` }}
+                                        transition={{ delay: i * 0.05, duration: 0.5 }}
+                                    />
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-emerald-400' : 'text-gray-500'}`}>
+                                    {format(d, 'EEE').charAt(0)}
+                                </span>
+                                <span className={`text-[10px] ${isToday ? 'text-white font-bold' : 'text-gray-600'}`}>
+                                    {steps > 999 ? `${(steps / 1000).toFixed(1)}k` : steps}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </GlassCard>
         </div>
     );
 };

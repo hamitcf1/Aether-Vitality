@@ -260,9 +260,12 @@ export const DashboardPage: React.FC = () => {
                 </StatCard>
                 <StatCard icon={Flame} label="Streak" value={streak} color="gold" subLabel={`${streak} days`}>
                     <div className="flex gap-0.5 mt-1">
-                        {[...Array(7)].map((_, i) => (
-                            <div key={i} className={`h-1.5 w-full rounded-full ${i < streak % 7 ? 'bg-amber-400' : 'bg-white/[0.04]'}`} />
-                        ))}
+                        {[...Array(7)].map((_, i) => {
+                            const activeDots = streak === 0 ? 0 : (streak % 7 || 7);
+                            return (
+                                <div key={i} className={`h-1.5 w-full rounded-full ${i < activeDots ? 'bg-amber-400' : 'bg-white/[0.04]'}`} />
+                            );
+                        })}
                     </div>
                 </StatCard>
                 <StatCard icon={Star} label="Total XP" value={xp} color="emerald" subLabel={`Lv.${level}`}>
