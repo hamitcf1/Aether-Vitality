@@ -22,6 +22,8 @@ import { getAlchemistAdvice } from '../lib/gemini';
 import { getDailyInsight } from '../lib/aiInsights';
 import { analyzeMeal, calculateHealthImpact, validateFoodInput } from '../lib/aiFoodAnalyzer';
 import { isAIAvailable } from '../lib/aiProvider';
+import { useToast } from '../context/ToastContext';
+import { useSound } from '../lib/SoundManager';
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
@@ -116,8 +118,12 @@ export const DashboardPage: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mealsLogged, questsCompleted, streak, level]);
 
+    const { addToast } = useToast();
+    const { play } = useSound();
+
     const handleLogMeal = useCallback(async () => {
         if (!mealInput.trim()) return;
+        play('click');
         setIsLogging(true);
         setValidationError(null);
         try {
@@ -125,6 +131,8 @@ export const DashboardPage: React.FC = () => {
             const validation = await validateFoodInput(mealInput);
             if (!validation.isFood) {
                 setValidationError(validation.reason);
+                addToast(validation.reason, 'error');
+                play('error');
                 setIsLogging(false);
                 return;
             }
@@ -186,11 +194,17 @@ export const DashboardPage: React.FC = () => {
                 }
             });
 
+            addToast('Sustenance recorded successfully.', 'success');
+            play('success');
+
             setMealInput('');
             setShowMealModal(false);
-        } catch { /* ignore */ }
+        } catch {
+            addToast('Failed to analyze sustenance.', 'error');
+            play('error');
+        }
         setIsLogging(false);
-    }, [mealInput, profile, hp, quests, logMeal, updateQuestProgress, addFood]);
+    }, [mealInput, profile, hp, quests, logMeal, updateQuestProgress, addFood, addToast, play]);
 
     return (
         <PageTransition className="space-y-6">
