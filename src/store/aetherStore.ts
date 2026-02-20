@@ -59,6 +59,8 @@ export interface UserProfile {
     activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
     targetWeightKg?: number;
     guildId?: string;
+    isPublic?: boolean;
+    bio?: string;
 }
 
 export interface EquippedItems {

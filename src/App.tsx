@@ -31,6 +31,10 @@ const GuildsPage = lazy(() => import('./pages/social/GuildsPage').then(module =>
 const ShopPage = lazy(() => import('./pages/ShopPage').then(module => ({ default: module.ShopPage })));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
 
+import { InstallPrompt } from './components/pwa/InstallPrompt';
+import { OfflineBanner } from './components/pwa/OfflineBanner';
+import { IOSInstallInstructions } from './components/pwa/IOSInstallInstructions';
+
 // Loading Component
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[50vh]">
@@ -88,6 +92,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen relative">
+      <OfflineBanner />
+      <InstallPrompt />
+      <IOSInstallInstructions />
       <CustomCursor />
 
       <Suspense fallback={<PageLoader />}>

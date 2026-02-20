@@ -30,10 +30,24 @@ export interface GuildMessage {
     type: 'text' | 'system';
 }
 
+export interface Raid {
+    id: string;
+    bossName: string;
+    bossImage: string; // Emoji
+    totalHp: number;
+    currentHp: number;
+    level: number;
+    status: 'active' | 'defeated' | 'failed';
+    startTime: string;
+    endTime: string;
+    contributors: Record<string, number>; // uid -> damage dealt
+}
+
 interface GuildsState {
     activeGuild: Guild | null;
     messages: GuildMessage[];
     publicGuilds: Guild[];
+    activeRaid: Raid | null; // Current raid
     loading: boolean;
     error: string | null;
 
@@ -43,13 +57,18 @@ interface GuildsState {
     joinGuild: (guildId: string) => Promise<void>;
     leaveGuild: () => Promise<void>;
     sendMessage: (content: string) => Promise<void>;
-    subscribeToGuild: (guildId: string) => () => void; // Returns unsubscribe function
+    subscribeToGuild: (guildId: string) => () => void;
+
+    // Raid Actions
+    startRaid: () => Promise<void>;
+    attackBoss: () => Promise<number>; // Returns damage dealt
 }
 
 export const useGuildsStore = create<GuildsState>((set, get) => ({
     activeGuild: null,
     messages: [],
     publicGuilds: [],
+    activeRaid: null,
     loading: false,
     error: null,
 
@@ -149,7 +168,7 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
                 aetherState.setProfile(newProfile);
             }
 
-            set({ activeGuild: null, messages: [] });
+            set({ activeGuild: null, messages: [], activeRaid: null });
         } catch (error: any) {
             set({ error: error.message });
         }
@@ -176,6 +195,98 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
         }
     },
 
+    startRaid: async () => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild } = get();
+        if (!user || !activeGuild || user.uid !== activeGuild.leaderId) return; // Leader only
+
+        // Define Boss
+        const bossName = "The Abyssal Titan";
+        const totalHp = 5000; // Starting HP
+        const raidId = `raid_${Date.now()}`;
+
+        const newRaid: Raid = {
+            id: raidId,
+            bossName,
+            bossImage: "👹",
+            totalHp,
+            currentHp: totalHp,
+            level: 1,
+            status: 'active' as const,
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+            contributors: {}
+        };
+
+        try {
+            await setDoc(doc(db, 'guilds', activeGuild.id, 'raids', 'active'), newRaid);
+        } catch (error: any) {
+            set({ error: error.message });
+        }
+    },
+
+    attackBoss: async () => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild, activeRaid } = get();
+        if (!user || !activeGuild || !activeRaid || activeRaid.status !== 'active') return 0;
+
+        const aetherState = useAetherStore.getState();
+        const userLevel = aetherState.level || 1;
+        const streak = aetherState.streak || 0;
+
+        // Damage Formula
+        // Base: 10
+        // Level Bonus: Level * 2
+        // Streak Bonus: Streak * 5
+        // Random: 0-20
+        // Crit Chance: 10% (x2)
+        let damage = 10 + (userLevel * 2) + (streak * 5) + Math.floor(Math.random() * 20);
+        const isCrit = Math.random() < 0.1;
+        if (isCrit) damage *= 2;
+
+        const newHp = Math.max(0, activeRaid.currentHp - damage);
+        const status: Raid['status'] = newHp === 0 ? 'defeated' : 'active';
+
+        // Optimistic Update
+        const updatedRaid = {
+            ...activeRaid,
+            currentHp: newHp,
+            status,
+            contributors: {
+                ...activeRaid.contributors,
+                [user.uid]: (activeRaid.contributors[user.uid] || 0) + damage
+            }
+        };
+        set({ activeRaid: updatedRaid });
+
+        try {
+            // Firestore Update
+            const raidRef = doc(db, 'guilds', activeGuild.id, 'raids', 'active');
+            await updateDoc(raidRef, {
+                currentHp: newHp,
+                status,
+                [`contributors.${user.uid}`]: (activeRaid.contributors[user.uid] || 0) + damage
+            });
+
+            // If defeated, maybe give rewards? (Future)
+            if (status === 'defeated') {
+                await addDoc(collection(db, 'guilds', activeGuild.id, 'messages'), {
+                    senderId: 'system',
+                    senderName: 'System',
+                    content: `🏆 The ${activeRaid.bossName} has been defeated by ${aetherState.profile?.name}!`,
+                    timestamp: new Date(),
+                    type: 'system'
+                });
+            }
+
+            return damage;
+        } catch (error: any) {
+            console.error("Attack failed:", error);
+            // Revert on error would be ideal, but for now just log
+            return 0;
+        }
+    },
+
     subscribeToGuild: (guildId) => {
         // Subscribe to Guild Data (Level, Members)
         const unsubGuild = onSnapshot(doc(db, 'guilds', guildId), (doc) => {
@@ -185,20 +296,31 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
         });
 
         // Subscribe to Chat Messages
-        const q = query(
+        const qChat = query(
             collection(db, 'guilds', guildId, 'messages'),
             orderBy('timestamp', 'desc'),
             limit(50)
         );
 
-        const unsubChat = onSnapshot(q, (snapshot) => {
+        const unsubChat = onSnapshot(qChat, (snapshot) => {
             const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as GuildMessage)).reverse();
             set({ messages: msgs });
+        });
+
+        // Subscribe to Active Raid
+        const unsubRaid = onSnapshot(doc(db, 'guilds', guildId, 'raids', 'active'), (doc) => {
+            if (doc.exists()) {
+                set({ activeRaid: { id: doc.id, ...doc.data() } as Raid });
+            } else {
+                set({ activeRaid: null });
+            }
         });
 
         return () => {
             unsubGuild();
             unsubChat();
+            unsubRaid();
         };
     }
 }));
+

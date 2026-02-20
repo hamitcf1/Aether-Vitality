@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
     Settings, Trophy, Download, RotateCcw, ChevronRight,
     Heart, Brain, Shield, Flame, Star, MessageCircle, UtensilsCrossed, Upload,
-    Zap, Key, Database, Sparkles, LogOut,
+    Zap, Key, Database, Sparkles, LogOut, User,
 } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -376,6 +376,39 @@ export const ProfilePage: React.FC = () => {
                     <h3 className="text-sm font-bold text-white">Settings</h3>
                 </div>
                 <div className="space-y-1">
+                    {/* Public Profile Toggle */}
+                    <div className="w-full flex items-center justify-between p-3 glass-subtle rounded-xl mb-1">
+                        <div>
+                            <span className="flex items-center gap-3 text-sm text-gray-300">
+                                <Shield className="w-4 h-4 text-indigo-400" /> Public Profile
+                            </span>
+                            <p className="text-[10px] text-gray-500 mt-1 ml-7">
+                                Allow other guild members to see your stats.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => profile && store.setProfile({ ...profile, isPublic: !profile.isPublic })}
+                            className={`w-10 h-6 rounded-full p-1 transition-colors relative cursor-pointer ${profile?.isPublic !== false ? 'bg-emerald-500/20 shadow-inner' : 'bg-gray-500/10'}`}
+                        >
+                            <div className={`w-4 h-4 rounded-full shadow-sm transition-all ${profile?.isPublic !== false ? 'bg-emerald-400 translate-x-4' : 'bg-gray-500 translate-x-0'}`} />
+                        </button>
+                    </div>
+
+                    {/* Bio Input */}
+                    <div className="p-3 glass-subtle rounded-xl mb-1">
+                        <span className="flex items-center gap-3 text-sm text-gray-300 mb-2">
+                            <User className="w-4 h-4 text-cyan-400" /> Status / Bio
+                        </span>
+                        <input
+                            type="text"
+                            placeholder="Set a status message..."
+                            value={profile?.bio || ''}
+                            onChange={(e) => profile && store.setProfile({ ...profile, bio: e.target.value })}
+                            className="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-cyan-500/50"
+                            maxLength={60}
+                        />
+                    </div>
+
                     {/* Custom Cursor Toggle */}
                     <div className="w-full flex items-center justify-between p-3 glass-subtle rounded-xl mb-1">
                         <span className="flex items-center gap-3 text-sm text-gray-300">

@@ -9,7 +9,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Allow users to read/write to any subcollection under their user document
+    // --- User Data Subcollections ---
+    
+    // Public Profile Rule: Allow reading 'aether' doc if profile.isPublic is true
+    match /users/{userId}/data/aether {
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || 
+        resource.data.profile.isPublic == true
+      );
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default rule for other user subcollections (private)
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
@@ -27,11 +38,40 @@ service cloud.firestore {
 
     // --- Guilds Collection ---
     match /guilds/{guildId} {
-      allow read, create: if request.auth != null;
-      allow update: if request.auth != null; 
+      // Any authenticated user can browse/read guilds
+      allow read: if request.auth != null;
       
+      // Any authenticated user can create a guild
+      allow create: if request.auth != null;
+      
+      // Updates: Leader can change anything.
+      // Non-leaders can ONLY modify memberIds (join/leave).
+      allow update: if request.auth != null
+        && (
+          // Leader can update anything
+          request.auth.uid == resource.data.leaderId
+          // Non-leaders can only join (add themselves) or leave (remove themselves)
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+          )
+        );
+      
+      // Only the guild leader can delete the guild
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.leaderId;
+      
+      // --- Guild Messages Subcollection ---
       match /messages/{messageId} {
-        allow read, write: if request.auth != null;
+        // Only guild members can read messages
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/guilds/$(guildId)).data.memberIds;
+        
+        // Only guild members can create messages
+        allow create: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/guilds/$(guildId)).data.memberIds;
+        
+        // No one can edit or delete messages (immutable chat history)
+        allow update, delete: if false;
       }
     }
     

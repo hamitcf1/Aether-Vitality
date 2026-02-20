@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, Plus, Trophy, LogOut } from 'lucide-react';
+import { Users, Shield, Plus, Trophy } from 'lucide-react';
 import { useGuildsStore } from '../../store/guildsStore';
 import { useAetherStore } from '../../store/aetherStore';
 
@@ -8,6 +8,17 @@ import { PageTransition } from '../../components/layout/PageTransition';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GuildChat } from '../../components/social/GuildChat';
 import { CreateGuildModal } from '../../components/social/CreateGuildModal';
+import { RaidBoss } from '../../components/social/RaidBoss';
+
+// Helper for theme gradients
+const getThemeGradient = (theme: string) => {
+    switch (theme) {
+        case 'gold': return 'from-amber-500 to-yellow-300';
+        case 'cyberpunk': return 'from-pink-500 to-rose-400';
+        case 'midnight': return 'from-indigo-900 to-slate-800';
+        default: return 'from-emerald-500 to-cyan-500';
+    }
+};
 
 export const GuildsPage: React.FC = () => {
     const {
@@ -32,6 +43,12 @@ export const GuildsPage: React.FC = () => {
 
     const handleJoin = async (guildId: string) => {
         await joinGuild(guildId);
+    };
+
+    const handleLeaveGuild = async () => {
+        if (window.confirm("Are you sure you want to leave this guild?")) {
+            await leaveGuild();
+        }
     };
 
     return (
@@ -66,33 +83,46 @@ export const GuildsPage: React.FC = () => {
                     >
                         {/* Left Column: Guild Info & Members */}
                         <div className="space-y-6 lg:col-span-1">
-                            <GlassCard glow="purple" className="relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <Shield size={120} />
-                                </div>
-                                <h2 className="text-2xl font-black text-white mb-1">{activeGuild.name}</h2>
-                                <p className="text-sm text-gray-400 mb-6">{activeGuild.description}</p>
+                            <div className="glass p-6 rounded-2xl border border-white/5 relative overflow-hidden">
+                                {/* Theme Background for Guild Card */}
+                                <div className={`absolute inset-0 opacity-20 pointer-events-none bg-gradient-to-br ${getThemeGradient(activeGuild.theme)}`} />
 
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="glass-subtle px-4 py-2 rounded-xl text-center">
-                                        <p className="text-xs text-gray-500 uppercase">Level</p>
-                                        <p className="text-xl font-bold text-white">{activeGuild.level}</p>
+                                <div className="relative z-10 text-center">
+                                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-emerald-500/20 mb-4">
+                                        {activeGuild.name.substring(0, 2).toUpperCase()}
                                     </div>
-                                    <div className="glass-subtle px-4 py-2 rounded-xl text-center">
-                                        <p className="text-xs text-gray-500 uppercase">Members</p>
-                                        <p className="text-xl font-bold text-white">{activeGuild.memberIds.length}</p>
+                                    <h2 className="text-2xl font-black text-white mb-1">{activeGuild.name}</h2>
+                                    <p className="text-emerald-400 font-bold mb-4">Level {activeGuild.level}</p>
+
+                                    <div className="grid grid-cols-2 gap-2 mb-6">
+                                        <div className="bg-black/20 rounded-xl p-3">
+                                            <div className="text-xs text-gray-400 uppercase font-bold">Members</div>
+                                            <div className="text-lg font-black text-white">{activeGuild.memberIds.length}</div>
+                                        </div>
+                                        <div className="bg-black/20 rounded-xl p-3">
+                                            <div className="text-xs text-gray-400 uppercase font-bold">XP</div>
+                                            <div className="text-lg font-black text-white">{activeGuild.xp.toLocaleString()}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-bold text-white transition-colors">
+                                            Settings
+                                        </button>
+                                        <button
+                                            onClick={handleLeaveGuild}
+                                            className="flex-1 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-sm font-bold transition-colors"
+                                        >
+                                            Leave
+                                        </button>
                                     </div>
                                 </div>
+                            </div>
 
-                                <motion.button
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={leaveGuild}
-                                    className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <LogOut className="w-4 h-4" /> Leave Guild
-                                </motion.button>
-                            </GlassCard>
+                            {/* Raid Boss Section */}
+                            <RaidBoss />
 
+                            {/* Members List */}
                             <GlassCard>
                                 <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                                     <Trophy className="w-4 h-4 text-yellow-500" /> Guild Quests
