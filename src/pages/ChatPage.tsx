@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Trash2, Sparkles, Lightbulb, Heart, Target, Volume2, VolumeX } from 'lucide-react';
+import { Send, Trash2, Sparkles, Lightbulb, Heart, Target, Volume2, VolumeX, Clock } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { ChatBubble, TypingIndicator } from '../components/ui/ChatBubble';
@@ -22,6 +22,19 @@ export const ChatPage: React.FC = () => {
     const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const [timeLeft, setTimeLeft] = useState<string>('');
+
+    // Timer logic
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const ms = store.getTimeUntilNextRefill();
+            const hours = Math.floor(ms / 3600000);
+            const minutes = Math.floor((ms % 3600000) / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+            setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [store]);
 
     // Speak helper
     const speakText = useCallback((text: string) => {
@@ -119,7 +132,7 @@ RULES:
 
         try {
             // Build conversation history
-            const historyPrompt = store.chatHistory.slice(-10).map((m) =>
+            const historyPrompt = store.chatHistory.slice(-10).map((m: any) =>
                 `${m.role === 'assistant' ? 'Alchemist' : 'Seeker'}: ${m.content}`
             ).join('\n\n');
 
@@ -133,7 +146,7 @@ RULES:
                 if (isVoiceEnabled) speakText(response.text);
             } else if (client) {
                 // Fallback to direct client
-                const history = store.chatHistory.slice(-10).map((m) => ({
+                const history = store.chatHistory.slice(-10).map((m: any) => ({
                     role: m.role === 'assistant' ? 'model' as const : 'user' as const,
                     parts: [{ text: m.content }],
                 }));
@@ -192,9 +205,14 @@ RULES:
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Token usage badge */}
-                    <div className="flex items-center gap-1.5 px-3 py-1 glass-subtle rounded-full text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
-                        <Sparkles className="w-3 h-3" />
-                        {store.aiTokens} / {store.maxAiTokens} Fragments
+                    <div className="flex flex-col items-end">
+                        <div className="flex items-center gap-1.5 px-3 py-1 glass-subtle rounded-full text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                            <Sparkles className="w-3 h-3" />
+                            {store.aiTokens} / {store.maxAiTokens} Fragments
+                        </div>
+                        <div className="flex items-center gap-1 text-[9px] text-gray-500 mt-1 font-mono">
+                            <Clock className="w-2.5 h-2.5" /> Refill in {timeLeft}
+                        </div>
                     </div>
 
                     <button
@@ -230,7 +248,7 @@ RULES:
                             </p>
                         </div>
                     ) : (
-                        store.chatHistory.map((msg) => (
+                        store.chatHistory.map((msg: any) => (
                             <ChatBubble key={msg.id} role={msg.role} content={msg.content} timestamp={msg.timestamp} />
                         ))
                     )}

@@ -1,187 +1,176 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { MessageSquare, Users, MessageCircle, Send } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Send } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
-import { useAuthStore } from '../store/authStore';
-import { useAetherStore } from '../store/aetherStore';
-import { db } from '../lib/firebase';
-import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { HeroCard } from '../components/social/HeroCard';
+import { UserFeed } from '../components/social/UserFeed';
+import { db } from '../lib/firebase';
+import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, getDocs, where } from 'firebase/firestore';
 
 interface GlobalChatMessage {
     id: string;
-    senderId: string;
-    senderName: string;
+    userId: string;
+    userName: string;
     content: string;
     timestamp: any;
 }
 
 export const CommunityPage: React.FC = () => {
     const user = useAuthStore(s => s.user);
-    const profile = useAetherStore(s => s.profile);
-    const [activeTab, setActiveTab] = useState<'chat' | 'forum'>('chat');
+    const [activeTab, setActiveTab] = useState<'feed' | 'chat' | 'seekers' | 'forum'>('feed');
+
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
     // Chat State
     const [messages, setMessages] = useState<GlobalChatMessage[]>([]);
     const [input, setInput] = useState('');
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-    const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Fetch Global Chat
     useEffect(() => {
-        if (activeTab !== 'chat') return;
-
-        const q = query(collection(db, 'global_chat'), orderBy('timestamp', 'desc'), limit(50));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as GlobalChatMessage[];
-            setMessages(msgs.reverse());
-        });
-
-        return () => unsubscribe();
-    }, [activeTab]);
-
-    // Auto-scroll chat
-    useEffect(() => {
-        if (scrollRef.current && activeTab === 'chat') {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        if (activeTab === 'chat') {
+            const q = query(
+                collection(db, 'global_chat'),
+                orderBy('timestamp', 'desc'),
+                limit(50)
+            );
+            return onSnapshot(q, (snapshot) => {
+                const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as GlobalChatMessage[];
+                setMessages(msgs.reverse());
+            }, (error) => {
+                console.error("Global chat snapshot error:", error);
+            });
         }
-    }, [messages, activeTab]);
+    }, [activeTab]);
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim() || !user || !profile) return;
-
-        const msgContent = input;
+        if (!input.trim() || !user) return;
+        const text = input;
         setInput('');
-
-        try {
-            await addDoc(collection(db, 'global_chat'), {
-                senderId: user.uid,
-                senderName: profile.name || 'Unknown',
-                content: msgContent,
-                timestamp: serverTimestamp()
-            });
-        } catch (err) {
-            console.error("Failed to send message", err);
-        }
+        await addDoc(collection(db, 'global_chat'), {
+            userId: user.uid,
+            userName: user.displayName || 'Unknown',
+            content: text,
+            timestamp: serverTimestamp()
+        });
     };
 
+    async function handleSearch(term: string) {
+        setIsSearching(true);
+        try {
+            const usersRef = collection(db, 'users');
+            const q = query(
+                usersRef,
+                where('name', '>=', term),
+                where('name', '<=', term + '\uf8ff'),
+                limit(10)
+            );
+            const snap = await getDocs(q);
+            setSearchResults(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsSearching(false);
+        }
+    }
+
     return (
-        <PageTransition className="space-y-6 max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col">
-            <div>
-                <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                    <Users className="w-8 h-8 text-indigo-400" /> Community Hub
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">Connect with other Seekers across the realm.</p>
+        <PageTransition className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-2rem)]">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                <div>
+                    <h1 className="text-3xl lg:text-4xl font-black text-white tracking-tight">Nexus Hub</h1>
+                    <p className="text-gray-500 font-medium">Connect with fellow Seekers and share your journey.</p>
+                </div>
+
+                <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
+                    <button onClick={() => setActiveTab('feed')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'feed' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Nexus Feed</button>
+                    <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'chat' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Global Hub</button>
+                    <button onClick={() => setActiveTab('seekers')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'seekers' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Seekers</button>
+                    <button onClick={() => setActiveTab('forum')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'forum' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Hallowed Halls</button>
+                </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-white/10 pb-4">
-                <button
-                    onClick={() => setActiveTab('chat')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'chat'
-                        ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/50'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                        }`}
-                >
-                    <MessageSquare className="w-4 h-4" /> Global Chat
-                </button>
-                <button
-                    onClick={() => setActiveTab('forum')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'forum'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                        }`}
-                >
-                    <MessageCircle className="w-4 h-4" /> Forums (Coming Soon)
-                </button>
-            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 -mr-2">
+                {activeTab === 'feed' && (
+                    <div className="max-w-2xl mx-auto py-6">
+                        <UserFeed />
+                    </div>
+                )}
 
-            {/* Chat Area */}
-            {activeTab === 'chat' && (
-                <GlassCard className="flex-grow flex flex-col p-0 overflow-hidden">
-                    <div
-                        ref={scrollRef}
-                        className="flex-grow p-4 overflow-y-auto space-y-4 custom-scrollbar"
-                    >
-                        {messages.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50">
-                                <MessageSquare className="w-8 h-8 mb-2" />
-                                <p className="text-sm">No messages yet. Say hello!</p>
+                {activeTab === 'chat' && (
+                    <GlassCard className="h-full flex flex-col !p-0 overflow-hidden">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                            {messages.map((msg) => (
+                                <div key={msg.id} className="flex flex-col">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs font-bold text-indigo-400">{msg.userName}</span>
+                                        <span className="text-[10px] text-gray-600">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString() : ''}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-300 bg-white/5 rounded-xl px-4 py-2 inline-block max-w-[80%]">{msg.content}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 flex gap-2 bg-black/20">
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Broadcast to the Nexus..."
+                                className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                            />
+                            <button type="submit" className="p-2 bg-indigo-600 text-white rounded-xl"><Send className="w-4 h-4" /></button>
+                        </form>
+                    </GlassCard>
+                )}
+
+                {activeTab === 'seekers' && (
+                    <div className="space-y-6">
+                        <div className="relative max-w-xl mx-auto">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    if (e.target.value.length >= 3) handleSearch(e.target.value);
+                                }}
+                                placeholder="Search by name..."
+                                className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-cyan-500/50 shadow-xl"
+                            />
+                        </div>
+
+                        {selectedUser ? (
+                            <div className="max-w-xl mx-auto">
+                                <button onClick={() => setSelectedUser(null)} className="mb-4 text-xs font-bold text-cyan-400 hover:underline">← Back to Search</button>
+                                <HeroCard userId={selectedUser} isOpen={true} onClose={() => setSelectedUser(null)} />
                             </div>
                         ) : (
-                            messages.map((msg) => {
-                                const isMe = msg.senderId === user?.uid;
-                                return (
-                                    <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                        <div className="flex items-end gap-2 max-w-[80%]">
-                                            {!isMe && (
-                                                <button
-                                                    onClick={() => setSelectedUserId(msg.senderId)}
-                                                    className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold flex-shrink-0 hover:scale-110 transition-transform cursor-pointer"
-                                                >
-                                                    {msg.senderName.charAt(0)}
-                                                </button>
-                                            )}
-                                            <div className={`px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white/10 text-gray-200 rounded-bl-sm'}`}>
-                                                {msg.content}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {searchResults.map((res) => (
+                                    <button
+                                        key={res.uid}
+                                        onClick={() => setSelectedUser(res.uid)}
+                                        className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-cyan-500/50 transition-all text-left group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold group-hover:shadow-glow-sm">
+                                                {res.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-bold text-white">{res.name}</h4>
+                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest">Level {res.level || 1}</p>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] text-gray-600 mt-1 px-1 flex items-center gap-1">
-                                            {!isMe && (
-                                                <button onClick={() => setSelectedUserId(msg.senderId)} className="hover:text-indigo-400 transition-colors">
-                                                    {msg.senderName}
-                                                </button>
-                                            )}
-                                            <span className="text-gray-700">•</span>
-                                            {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
-                                        </span>
-                                    </div>
-                                );
-                            })
+                                    </button>
+                                ))}
+                            </div>
                         )}
                     </div>
-
-                    <form onSubmit={handleSendMessage} className="p-3 bg-white/[0.02] border-t border-white/5 flex gap-2">
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            placeholder="Message the community..."
-                            className="flex-grow bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
-                        />
-                        <motion.button
-                            whileTap={{ scale: 0.9 }}
-                            type="submit"
-                            disabled={!input.trim()}
-                            className="p-2.5 bg-indigo-600 rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-500 transition-colors"
-                        >
-                            <Send className="w-4 h-4" />
-                        </motion.button>
-                    </form>
-                </GlassCard>
-            )}
-
-            {/* Forum Placeholder Area */}
-            {activeTab === 'forum' && (
-                <GlassCard className="flex-grow flex flex-col items-center justify-center text-center p-8">
-                    <MessageCircle className="w-16 h-16 text-emerald-400/50 mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2">Community Forums</h3>
-                    <p className="text-gray-400 max-w-md">
-                        The forums are currently under construction. Check back soon for deep discussions, guides, and lore sharing!
-                    </p>
-                </GlassCard>
-            )}
-
-            <HeroCard
-                userId={selectedUserId || ''}
-                isOpen={!!selectedUserId}
-                onClose={() => setSelectedUserId(null)}
-            />
+                )}
+            </div>
         </PageTransition>
     );
 };

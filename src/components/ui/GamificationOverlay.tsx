@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, ArrowUpCircle } from 'lucide-react';
+import { Trophy, Star, ArrowUpCircle, Coins } from 'lucide-react';
 import { useAetherStore } from '../../store/aetherStore';
 import { ACHIEVEMENTS } from '../../lib/achievements';
 import { useSound } from '../../lib/SoundManager';
@@ -125,9 +125,22 @@ export const GamificationOverlay: React.FC = () => {
                         </div>
                         <div>
                             <p className="text-sm font-black text-white uppercase tracking-wider">Achievement Unlocked</p>
-                            <p className="text-xs text-amber-400 font-bold mt-1">
-                                {newAchievements.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.title).join(', ')}
-                            </p>
+                            <div className="flex flex-col gap-1 mt-1">
+                                {newAchievements.map((id) => {
+                                    const ach = ACHIEVEMENTS.find((a) => a.id === id);
+                                    if (!ach) return null;
+                                    return (
+                                        <div key={id} className="flex items-center gap-2">
+                                            <p className="text-xs text-amber-400 font-bold">{ach.title}</p>
+                                            {ach.rewardCoins && (
+                                                <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                                                    +{ach.rewardCoins} <Coins className="w-3 h-3" />
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </motion.div>
                 )}

@@ -11,7 +11,7 @@ const BOT_PROFILES = [
     { id: 'bot_04', name: 'Aria Silver', avatar: '🔮' },
     { id: 'bot_05', name: 'Iron Will', avatar: '🐉' },
     { id: 'bot_06', name: 'Sarah_Fit', avatar: '🧬' },
-    { id: 'bot_07', name: 'David G.', avatar: '🦅' }, // Assuming owl but letting some be unique? No let's stick to standard map
+    { id: 'bot_07', name: 'David G.', avatar: '🦅' },
     { id: 'bot_08', name: 'Mystic Aura', avatar: '🔮' },
     { id: 'bot_09', name: 'John Doe', avatar: '⚗️' },
     { id: 'bot_10', name: 'Luna_Love', avatar: '🦉' },
@@ -23,8 +23,13 @@ const BOT_PROFILES = [
     { id: 'bot_16', name: 'Sun Gazer', avatar: '🔮' },
     { id: 'bot_17', name: 'River Flow', avatar: '⚗️' },
     { id: 'bot_18', name: 'Mountain Peak', avatar: '🦉' },
-    { id: 'bot_19', name: 'Cosmic Dust', avatar: '✨' }, // Let's keep a couple specials to feel organic unless user strictly wants only the basic 8
+    { id: 'bot_19', name: 'Cosmic Dust', avatar: '✨' },
     { id: 'bot_20', name: 'Forest Spirit', avatar: '🌿' },
+    { id: 'bot_21', name: 'Phoenix Fire', avatar: '🔥' },
+    { id: 'bot_22', name: 'Glacial Wind', avatar: '❄️' },
+    { id: 'bot_23', name: 'Void Walker', avatar: '🌌' },
+    { id: 'bot_24', name: 'Star Dreamer', avatar: '⭐' },
+    { id: 'bot_25', name: 'Earth Guardian', avatar: '🌍' },
 ];
 
 const BOT_UPDATE_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours

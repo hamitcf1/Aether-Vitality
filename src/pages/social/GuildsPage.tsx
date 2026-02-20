@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, Plus, Trophy } from 'lucide-react';
+import { Users, Shield, Plus, Trophy, Settings, ShieldOff, Trash2, UserMinus } from 'lucide-react';
 import { useGuildsStore } from '../../store/guildsStore';
+import { useAuthStore } from '../../store/authStore';
 import { useAetherStore } from '../../store/aetherStore';
 
 import { PageTransition } from '../../components/layout/PageTransition';
@@ -27,7 +28,13 @@ export const GuildsPage: React.FC = () => {
     } = useGuildsStore();
 
     const profile = useAetherStore(state => state.profile);
+    const user = useAuthStore(state => state.user);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [newName, setNewName] = useState('');
+
+    const isLeader = activeGuild?.leaderId === user?.uid;
 
     // Sync guild state on mount
     useEffect(() => {
@@ -106,18 +113,103 @@ export const GuildsPage: React.FC = () => {
                                     </div>
 
                                     <div className="flex gap-2">
-                                        <button className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-bold text-white transition-colors">
-                                            Settings
-                                        </button>
+                                        {isLeader && (
+                                            <button
+                                                onClick={() => setShowSettings(!showSettings)}
+                                                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
+                                                    ${showSettings ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-white/5 hover:bg-white/10 text-white'}`}
+                                            >
+                                                <Settings className="w-4 h-4" />
+                                                Settings
+                                            </button>
+                                        )}
                                         <button
                                             onClick={handleLeaveGuild}
-                                            className="flex-1 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-sm font-bold transition-colors"
+                                            className="flex-1 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
                                         >
+                                            <ShieldOff className="w-4 h-4" />
                                             Leave
                                         </button>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Leader Settings Panel */}
+                            <AnimatePresence>
+                                {showSettings && isLeader && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <GlassCard className="space-y-4">
+                                            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                                                <Settings className="w-4 h-4 text-indigo-400" /> Leader Controls
+                                            </h3>
+
+                                            {/* Rename */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-gray-400 uppercase font-bold">Guild Name</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (isRenaming) {
+                                                                if (newName.trim()) useGuildsStore.getState().renameGuild(newName);
+                                                                setIsRenaming(false);
+                                                            } else {
+                                                                setNewName(activeGuild.name);
+                                                                setIsRenaming(true);
+                                                            }
+                                                        }}
+                                                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase"
+                                                    >
+                                                        {isRenaming ? 'Save' : 'Rename'}
+                                                    </button>
+                                                </div>
+                                                {isRenaming ? (
+                                                    <input
+                                                        type="text"
+                                                        value={newName}
+                                                        onChange={(e) => setNewName(e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-400"
+                                                        maxLength={30}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <div className="text-sm text-white font-medium flex items-center gap-2">
+                                                        {activeGuild.name}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Theme Selection */}
+                                            <div className="space-y-2">
+                                                <span className="text-xs text-gray-400 uppercase font-bold block">Banner Theme</span>
+                                                <div className="flex gap-2">
+                                                    {['emerald', 'gold', 'cyberpunk', 'midnight'].map((t) => (
+                                                        <button
+                                                            key={t}
+                                                            onClick={() => useGuildsStore.getState().updateGuildTheme(t)}
+                                                            className={`w-8 h-8 rounded-full border-2 transition-all ${activeGuild.theme === t ? 'border-white scale-110' : 'border-transparent opacity-50 hover:opacity-100'} bg-gradient-to-br ${getThemeGradient(t)}`}
+                                                            title={t}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-2 border-t border-white/5">
+                                                <button
+                                                    onClick={() => useGuildsStore.getState().disbandGuild()}
+                                                    className="w-full py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" /> Disband Guild
+                                                </button>
+                                            </div>
+                                        </GlassCard>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Raid Boss Section */}
                             <RaidBoss />
@@ -125,9 +217,43 @@ export const GuildsPage: React.FC = () => {
                             {/* Members List */}
                             <GlassCard>
                                 <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-cyan-400" /> Hall of Members
+                                </h3>
+                                <div className="space-y-3">
+                                    {activeGuild.memberIds.map((mid) => (
+                                        <div key={mid} className="flex items-center justify-between group">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-gray-400">
+                                                    {mid === activeGuild.leaderId ? <Trophy className="w-4 h-4 text-amber-500" /> : <Shield className="w-4 h-4 text-gray-600" />}
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-bold text-white flex items-center gap-1">
+                                                        {mid === activeGuild.leaderId ? activeGuild.leaderName : 'Guild Member'}
+                                                        {mid === user?.uid && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 ml-1">You</span>}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 font-mono">{mid.substring(0, 8)}...</div>
+                                                </div>
+                                            </div>
+
+                                            {isLeader && mid !== user?.uid && (
+                                                <button
+                                                    onClick={() => useGuildsStore.getState().kickMember(mid)}
+                                                    className="p-2 text-gray-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500/10 rounded-lg"
+                                                    title="Kick Member"
+                                                >
+                                                    <UserMinus className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </GlassCard>
+
+                            <GlassCard>
+                                <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                                     <Trophy className="w-4 h-4 text-yellow-500" /> Guild Quests
                                 </h3>
-                                <div className="text-center py-8 text-gray-500 text-sm italic">
+                                <div className="text-center py-4 text-gray-500 text-sm italic">
                                     Weekly raids coming soon...
                                 </div>
                             </GlassCard>

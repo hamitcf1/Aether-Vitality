@@ -1,146 +1,60 @@
 import { create } from 'zustand';
 import { getLevelFromXP, ACHIEVEMENTS } from '../lib/achievements';
 import { format } from 'date-fns';
-import { saveToFirestore, saveToFirestoreImmediate, loadFromFirestore, syncToLeaderboard, removeFromLeaderboard } from '../lib/firestoreSync';
+import {
+    saveToFirestore, saveToFirestoreImmediate, loadFromFirestore,
+    syncToLeaderboard, removeFromLeaderboard
+} from '../lib/firestoreSync';
 import { SHOP_ITEMS } from '../lib/ShopData';
+import { db } from '../lib/firebase';
+import {
+    doc, updateDoc, arrayUnion, arrayRemove
+} from 'firebase/firestore';
+import { useAuthStore } from './authStore';
 
 import type {
-    UserProfileData as UserProfile,
-    QuestData as Quest,
-    JournalEntryData as JournalEntry,
-    ChatMessageData as ChatMessage,
-    MealLogData as MealLog,
-    HPHistoryData as HPHistory,
-    EquippedItemsData as EquippedItems,
-    ActiveBoostData as ActiveBoost
-} from '../lib/firebaseTypes';
-
-interface AetherState {
-    // Internal
-    _uid: string | null;
-
-    // Profile
-    profile: UserProfile | null;
-    onboardingComplete: boolean;
-
-    // Stats
-    hp: number;
-    mana: number;
-    xp: number;
-    level: number;
-    streak: number;
-    lastActiveDate: string;
-
-    // Tracking
-    mealsLogged: number;
-    questsCompleted: number;
-    daysActive: number;
-    unlockedAchievements: string[];
-    coins: number;
-    inventory: string[];
-    equipped: EquippedItems;
-    activeBoosts: ActiveBoost[];
-    aiTokens: number;
-    maxAiTokens: number;
-    lastTokenRefill: number;
-
-    // Data
-    quests: Quest[];
-    journal: JournalEntry[];
-    chatHistory: ChatMessage[];
-    mealHistory: MealLog[];
-    hpHistory: HPHistory[];
-
-    // Loading
-    isAILoading: boolean;
-
-    // Actions — Firestore
-    loadData: (uid: string) => Promise<void>;
-
-    // Actions — Profile
-    setProfile: (profile: UserProfile) => void;
-    completeOnboarding: () => void;
-
-    // Actions — Stats
-    setHP: (val: number) => void;
-    setMana: (val: number) => void;
-    addXP: (amount: number) => void;
-    updateStreak: () => void;
-
-    // Actions — Logging
-    logMeal: (meal: string, hpImpact: number, advice: string) => void;
-
-    // Actions — Quests
-    addQuest: (quest: Quest) => void;
-    updateQuestProgress: (questId: string, progress: number) => void;
-    completeQuest: (questId: string) => void;
-    generateDailyQuests: () => void;
-
-    // Actions — Journal
-    addJournalEntry: (entry: string, mood: JournalEntry['mood']) => void;
-
-    // Actions — Chat
-    addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
-    setAILoading: (loading: boolean) => void;
-    clearChat: () => void;
-
-    // Actions — Achievements
-    checkAchievements: () => string[];
-
-    // Actions — Data
-    resetProgress: () => void;
-    clearAllData: () => void;
-    exportData: () => string;
-
-    // Actions — Economy
-    addCoins: (amount: number) => void;
-    purchaseItem: (itemId: string) => boolean;
-    equipItem: (itemId: string, category: 'theme' | 'frame' | 'title') => void;
-    checkBoosts: () => void;
-
-    // Actions - AI Economy
-    spendAIToken: (amount?: number) => boolean;
-    refillAITokens: (amount?: number) => void;
-    checkAndRefillDailyTokens: () => void;
-}
+    AetherState,
+    MealLog,
+    JournalEntry,
+    ChatMessage
+} from '../types/aether';
 
 const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
-const uid = () => Math.random().toString(36).slice(2, 10);
+const uid = () => Math.random().toString(36).substring(2, 9);
 
-const DAILY_QUESTS_POOL: Omit<Quest, 'id' | 'completed' | 'progress'>[] = [
-    { title: 'Substance Analysis', description: 'Log 3 meals today', type: 'daily', target: 3, rewardXP: 30, icon: '🧪' },
-    { title: 'Hydration Protocol', description: 'Drink 8 glasses of water', type: 'daily', target: 8, rewardXP: 25, icon: '💧' },
-    { title: 'The Shore Patrol', description: 'Walk 5,000 steps', type: 'daily', target: 5000, rewardXP: 40, icon: '🚶' },
-    { title: 'Mindful Minute', description: 'Meditate for 10 minutes', type: 'daily', target: 10, rewardXP: 35, icon: '🧘' },
-    { title: 'Consult the Oracle', description: 'Ask the Alchemist for advice', type: 'daily', target: 1, rewardXP: 15, icon: '🔮' },
-    { title: 'Journal Entry', description: 'Write in your journal', type: 'daily', target: 1, rewardXP: 20, icon: '📝' },
-    { title: 'Early Riser', description: 'Log a meal before 9 AM', type: 'daily', target: 1, rewardXP: 25, icon: '🌅' },
-    { title: 'Green Elixir', description: 'Eat a vegetable-based meal', type: 'daily', target: 1, rewardXP: 20, icon: '🥗' },
+const DAILY_QUESTS_POOL = [
+    { title: 'Hydration Ritual', description: 'Log 8 glasses of water', type: 'daily', target: 8, rewardXP: 50, rewardCoins: 25, icon: '💧' },
+    { title: 'Mindful Breathing', description: 'Complete 5 mins of meditation', type: 'daily', target: 1, rewardXP: 30, rewardCoins: 15, icon: '🧘' },
+    { title: 'Oracle\'s Insight', description: 'Talk to the Alchemist', type: 'daily', target: 1, rewardXP: 25, rewardCoins: 10, icon: '🔮' },
+    { title: 'Nourishment Log', description: 'Log 3 balanced meals', type: 'daily', target: 3, rewardXP: 45, rewardCoins: 20, icon: '🍎' },
+    { title: 'Morning Stretch', description: 'Log a morning activity', type: 'daily', target: 1, rewardXP: 20, rewardCoins: 10, icon: '☀️' },
+    { title: 'Consult the Oracle', description: 'Ask the Alchemist for advice', type: 'daily', target: 1, rewardXP: 15, rewardCoins: 5, icon: '🔮' },
+    { title: 'Journal Entry', description: 'Write in your journal', type: 'daily', target: 1, rewardXP: 20, rewardCoins: 10, icon: '📝' },
+    { title: 'Early Riser', description: 'Log a meal before 9 AM', type: 'daily', target: 1, rewardXP: 25, rewardCoins: 15, icon: '🌅' },
+    { title: 'Green Elixir', description: 'Eat a vegetable-based meal', type: 'daily', target: 1, rewardXP: 20, rewardCoins: 10, icon: '🥗' },
 ];
 
-// Keys to persist to Firestore (exclude actions and internal fields)
 const DATA_KEYS = [
     'profile', 'onboardingComplete', 'hp', 'mana', 'xp', 'level', 'streak',
     'lastActiveDate', 'mealsLogged', 'questsCompleted', 'daysActive',
     'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
     'hpHistory', 'coins', 'inventory', 'equipped', 'activeBoosts',
-    'aiTokens', 'maxAiTokens', 'lastTokenRefill'
+    'aiTokens', 'maxAiTokens', 'lastTokenRefill', 'seenTutorials', 'widgetStates',
+    'following', 'followers', 'friends', 'pendingFriends', 'ratings'
 ] as const;
 
 function getDataSnapshot(state: AetherState): Record<string, unknown> {
     const data: Record<string, unknown> = {};
     for (const key of DATA_KEYS) {
-        data[key] = state[key];
+        data[key] = (state as any)[key];
     }
     return data;
 }
 
-/** Auto-save helper — call after any mutation */
 function autoSave(get: () => AetherState) {
     const state = get();
     if (state._uid) {
         saveToFirestore(state._uid, 'aether', getDataSnapshot(state));
-
         if (state.profile?.isPublic !== false) {
             syncToLeaderboard(state._uid, {
                 name: state.profile?.name || 'Unknown',
@@ -156,10 +70,7 @@ function autoSave(get: () => AetherState) {
 }
 
 export const useAetherStore = create<AetherState>()((set, get) => ({
-    // Internal
     _uid: null,
-
-    // Initial state
     profile: null,
     onboardingComplete: false,
     hp: 75,
@@ -185,192 +96,145 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     aiTokens: 10,
     maxAiTokens: 10,
     lastTokenRefill: 0,
+    seenTutorials: [],
+    widgetStates: {},
+    following: [],
+    followers: [],
+    friends: [],
+    pendingFriends: [],
+    ratings: {},
+    expPopups: [],
 
-    // Firestore
-    loadData: async (userUid) => {
+    loadData: async (userUid: string) => {
         set({ _uid: userUid });
-        const data = await loadFromFirestore(userUid, 'aether');
+        const data = await loadFromFirestore(userUid, 'aether') as any;
         if (data) {
-            // Only apply known data keys
-            const patch: Record<string, unknown> = {};
+            const patch: any = {};
             for (const key of DATA_KEYS) {
                 if (data[key] !== undefined) patch[key] = data[key];
             }
-
-            // Backfill coins for legacy users
-            // If xp > 0 but coins is undefined (or 0 and not explicitly set to 0? tricky. Assume undefined means new feature)
-            // But Firestore load returns existing data. If coins is missing there, it's undefined.
-            // Let's use a safe check: if coins is undefined in valid data, backfill.
-            const currentXP = (data.xp as number) || 0;
-            if (data.coins === undefined && currentXP > 0) {
-                patch.coins = Math.floor(currentXP * 0.5);
+            if (data.coins === undefined && (data.xp || 0) > 0) {
+                patch.coins = Math.floor((data.xp as number) * 0.5);
                 patch.inventory = [];
             }
-
-            // Ensure title exists in equipped
-            if (data.equipped) {
-                patch.equipped = { ...data.equipped, title: (data.equipped as Partial<EquippedItems>).title || 'Novice' };
-            } else {
-                patch.equipped = { theme: 'default', frame: 'none', title: 'Novice' };
-            }
-
-            // Defaults for AI Tokens for existing users
+            if (!data.equipped) patch.equipped = { theme: 'default', frame: 'none', title: 'Novice' };
             if (data.aiTokens === undefined) {
                 patch.aiTokens = 10;
                 patch.maxAiTokens = 10;
                 patch.lastTokenRefill = Date.now();
             }
-
-            set(patch as Partial<AetherState>);
+            set(patch);
         }
     },
 
-    // Profile
-    setProfile: (profile) => {
+    setProfile: (profile: any) => {
         set({ profile });
-        // Use immediate save — profile set during onboarding must persist
         const state = get();
         if (state._uid) saveToFirestoreImmediate(state._uid, 'aether', getDataSnapshot(state));
     },
+
     completeOnboarding: () => {
         set({ onboardingComplete: true });
-        // CRITICAL: must save immediately — navigating away would lose the debounced write
         const state = get();
         if (state._uid) saveToFirestoreImmediate(state._uid, 'aether', getDataSnapshot(state));
     },
 
-    // Stats
-    setHP: (val) => { set({ hp: clamp(val, 0, 100) }); autoSave(get); },
-    setMana: (val) => { set({ mana: clamp(val, 0, 100) }); autoSave(get); },
-    addXP: (amount) => {
+    setHP: (val: number) => { set({ hp: clamp(val, 0, 100) }); autoSave(get); },
+    setMana: (val: number) => { set({ mana: clamp(val, 0, 100) }); autoSave(get); },
+
+    addXP: (amount: number) => {
         const state = get();
-
-        // Check for active XP boosts
-        const xpBoost = state.activeBoosts.find(b => b.type === 'xp' && b.expiresAt > Date.now());
+        const xpBoost = state.activeBoosts.find((b: any) => b.type === 'xp' && b.expiresAt > Date.now());
         const finalXP = xpBoost ? amount * xpBoost.multiplier : amount;
-
-        // Apply streak multiplier
-        let streakMultiplier = 1;
-        if (state.streak >= 30) streakMultiplier = 1.5;
+        let streakMultiplier = 1.0;
+        if (state.streak >= 90) streakMultiplier = 2.0;
+        else if (state.streak >= 60) streakMultiplier = 1.75;
+        else if (state.streak >= 30) streakMultiplier = 1.5;
         else if (state.streak >= 7) streakMultiplier = 1.25;
         else if (state.streak >= 3) streakMultiplier = 1.1;
 
         const totalXPAdd = Math.floor(finalXP * streakMultiplier);
         const newXP = state.xp + totalXPAdd;
         const newLevel = getLevelFromXP(newXP);
+        const currentLevel = state.level;
 
-        // Coin logic: 1 Coin per 1 XP (base)
-        // Check for coin boosts
-        const coinBoost = state.activeBoosts.find(b => b.type === 'coin' && b.expiresAt > Date.now());
-        const coinAmount = coinBoost ? totalXPAdd * coinBoost.multiplier : totalXPAdd;
+        const newPopup = {
+            id: Date.now() + Math.random(),
+            amount: totalXPAdd,
+            x: window.innerWidth / 2 + (Math.random() * 200 - 100),
+            y: window.innerHeight / 2 + (Math.random() * 200 - 100)
+        };
 
-        set({ xp: newXP, level: newLevel });
-        get().addCoins(Math.floor(coinAmount));
+        set({ xp: newXP, level: newLevel, expPopups: [...state.expPopups, newPopup] });
+        get().addCoins(totalXPAdd);
 
-        // Deal passive damage to Guild Boss
-        import('./guildsStore').then(({ useGuildsStore }) => {
-            useGuildsStore.getState().dealBossDamage(totalXPAdd);
-        }).catch(err => console.error("Could not apply boss damage", err));
+        if (newLevel > currentLevel) {
+            // Level up...
+        }
+        autoSave(get);
     },
+
     updateStreak: () => {
         const state = get();
         const today = format(new Date(), 'yyyy-MM-dd');
         if (state.lastActiveDate === today) return;
-
         const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
         const newStreak = state.lastActiveDate === yesterday ? state.streak + 1 : 1;
         const newDaysActive = state.daysActive + 1;
-
-        // Record HP history
-        const newHPHistory = [...state.hpHistory, { date: today, hp: state.hp }].slice(-30);
-
-        set({
-            streak: newStreak,
-            lastActiveDate: today,
-            daysActive: newDaysActive,
-            hpHistory: newHPHistory,
-        });
+        set({ streak: newStreak, lastActiveDate: today, daysActive: newDaysActive });
         autoSave(get);
     },
 
-    // Logging
-    logMeal: (meal, hpImpact, advice) => {
+    logMeal: (meal: string, hpImpact: number, advice: string) => {
         const state = get();
-        const newHP = clamp(state.hp + hpImpact, 0, 100);
-        const newMana = clamp(state.mana + 3, 0, 100);
         const log: MealLog = { id: uid(), meal, timestamp: Date.now(), hpImpact, advice };
-
         set({
-            hp: newHP,
-            mana: newMana,
+            hp: clamp(state.hp + hpImpact, 0, 100),
+            mana: clamp(state.mana + 3, 0, 100),
             mealsLogged: state.mealsLogged + 1,
-            mealHistory: [log, ...state.mealHistory].slice(0, 100),
+            mealHistory: [log, ...state.mealHistory].slice(0, 100)
         });
-
-        // Auto XP
         get().addXP(10 + Math.abs(hpImpact));
         get().updateStreak();
     },
 
-    // Quests
-    addQuest: (quest) => { set((s) => ({ quests: [...s.quests, quest] })); autoSave(get); },
-    updateQuestProgress: (questId, progress) => {
-        set((s) => ({
-            quests: s.quests.map((q) =>
-                q.id === questId ? { ...q, progress: Math.min(progress, q.target) } : q
-            ),
+    addQuest: (quest: any) => { set((s: AetherState) => ({ quests: [...s.quests, quest] })); autoSave(get); },
+    updateQuestProgress: (questId: string, progress: number) => {
+        set((s: AetherState) => ({
+            quests: s.quests.map((q: any) => q.id === questId ? { ...q, progress: Math.min(progress, q.target) } : q)
         }));
         autoSave(get);
     },
-    completeQuest: (questId) => {
+    completeQuest: (questId: string) => {
         const state = get();
-        const quest = state.quests.find((q) => q.id === questId);
+        const quest = state.quests.find((q: any) => q.id === questId);
         if (!quest || quest.completed) return;
-
-        set((s) => ({
-            quests: s.quests.map((q) => q.id === questId ? { ...q, completed: true, progress: q.target } : q),
-            questsCompleted: s.questsCompleted + 1,
+        set((s: AetherState) => ({
+            quests: s.quests.map((q: any) => q.id === questId ? { ...q, completed: true, progress: q.target } : q),
+            questsCompleted: s.questsCompleted + 1
         }));
         get().addXP(quest.rewardXP);
+        if (quest.rewardCoins) get().addCoins(quest.rewardCoins);
     },
     generateDailyQuests: () => {
-        const state = get();
+        const state = get() as any;
         const today = format(new Date(), 'yyyy-MM-dd');
-        const hasTodayQuests = state.quests.some((q) => q.type === 'daily' && q.id.startsWith(today));
-        if (hasTodayQuests) return;
-
-        // Pick 3 random daily quests
+        if (state.quests.some((q: any) => q.type === 'daily' && q.id.startsWith(today))) return;
         const shuffled = [...DAILY_QUESTS_POOL].sort(() => Math.random() - 0.5);
-        const picked = shuffled.slice(0, 3).map((q) => ({
-            ...q,
-            id: `${today}-${uid()}`,
-            progress: 0,
-            completed: false,
-        }));
-        set((s) => ({
-            quests: [...picked, ...s.quests.filter((q) => q.type !== 'daily' || !q.completed)],
-        }));
+        const picked = shuffled.slice(0, 3).map(q => ({ ...q, id: `${today}-${uid()}`, progress: 0, completed: false }));
+        set((s: any) => ({ quests: [...picked, ...s.quests.filter((q: any) => q.type !== 'daily' || !q.completed)] }));
         autoSave(get);
     },
 
-    // Journal
-    addJournalEntry: (entry, mood) => {
-        const newEntry: JournalEntry = {
-            id: uid(),
-            date: format(new Date(), 'yyyy-MM-dd HH:mm'),
-            entry,
-            mood,
-            hpAtTime: get().hp,
-        };
-        set((s) => ({ journal: [newEntry, ...s.journal].slice(0, 200) }));
+    addJournalEntry: (entry: string, mood: string) => {
+        const newEntry: JournalEntry = { id: uid(), date: format(new Date(), 'yyyy-MM-dd HH:mm'), entry, mood, hpAtTime: get().hp };
+        set((s: AetherState) => ({ journal: [newEntry, ...s.journal].slice(0, 200) }));
         get().addXP(15);
     },
 
-    // Chat
-    addChatMessage: (message) => {
+    addChatMessage: (message: any) => {
         const newMessage: ChatMessage = { ...message, id: uid(), timestamp: Date.now() };
-        set((s) => ({ chatHistory: [...s.chatHistory, newMessage] }));
-
+        set((s: AetherState) => ({ chatHistory: [...s.chatHistory, newMessage] }));
         if (message.gameUpdates) {
             const u = message.gameUpdates;
             if (u.hp) get().setHP(get().hp + u.hp);
@@ -379,10 +243,9 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         }
         autoSave(get);
     },
-    setAILoading: (isAILoading) => set({ isAILoading }),
+    setAILoading: (isAILoading: boolean) => set({ isAILoading }),
     clearChat: () => { set({ chatHistory: [] }); autoSave(get); },
 
-    // Achievements
     checkAchievements: () => {
         const state = get();
         const stats = {
@@ -391,14 +254,9 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
             daysActive: state.daysActive,
             level: state.level,
             streak: state.streak,
-            chatMessages: state.chatHistory.filter((m) => m.role === 'user').length,
+            chatMessages: state.chatHistory.filter((m: any) => m.role === 'user').length
         };
-        const newlyUnlocked: string[] = [];
-        for (const ach of ACHIEVEMENTS) {
-            if (!state.unlockedAchievements.includes(ach.id) && ach.condition(stats)) {
-                newlyUnlocked.push(ach.id);
-            }
-        }
+        const newlyUnlocked = ACHIEVEMENTS.filter(ach => !state.unlockedAchievements.includes(ach.id) && ach.condition(stats)).map(a => a.id);
         if (newlyUnlocked.length > 0) {
             set({ unlockedAchievements: [...state.unlockedAchievements, ...newlyUnlocked] });
             autoSave(get);
@@ -406,141 +264,148 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         return newlyUnlocked;
     },
 
-    // Data
     resetProgress: () => {
-        set({
-            hp: 75, mana: 40, xp: 0, level: 1, streak: 0,
-            mealsLogged: 0, questsCompleted: 0, daysActive: 0,
-            unlockedAchievements: [], quests: [], journal: [],
-            chatHistory: [], mealHistory: [], hpHistory: [],
-            lastActiveDate: '',
-        });
+        set({ hp: 75, mana: 40, xp: 0, level: 1, streak: 0, mealsLogged: 0, questsCompleted: 0, daysActive: 0, unlockedAchievements: [], quests: [], journal: [], chatHistory: [], mealHistory: [], hpHistory: [], lastActiveDate: '' });
         autoSave(get);
     },
-    clearAllData: () => set({
-        _uid: null,
-        profile: null, onboardingComplete: false,
-        hp: 75, mana: 40, xp: 0, level: 1, streak: 0,
-        mealsLogged: 0, questsCompleted: 0, daysActive: 0,
-        unlockedAchievements: [], quests: [], journal: [],
-        chatHistory: [], mealHistory: [], hpHistory: [],
-        lastActiveDate: '', isAILoading: false,
-    }),
+    clearAllData: () => set({ _uid: null, profile: null, onboardingComplete: false, hp: 75, mana: 40, xp: 0, level: 1, streak: 0, mealsLogged: 0, questsCompleted: 0, daysActive: 0, unlockedAchievements: [], quests: [], journal: [], chatHistory: [], mealHistory: [], hpHistory: [], lastActiveDate: '', isAILoading: false }),
     exportData: () => JSON.stringify(get(), null, 2),
 
-    // Economy
-    addCoins: (amount) => {
-        set(s => ({ coins: s.coins + amount }));
-        autoSave(get);
-    },
-    purchaseItem: (itemId) => {
+    addCoins: (amount: number) => { set((s: AetherState) => ({ coins: s.coins + amount })); autoSave(get); },
+    purchaseItem: (itemId: string) => {
         const state = get();
         const item = SHOP_ITEMS.find(i => i.id === itemId);
-
-        if (!item) return false;
-
-        // Check ownership only for non-consumables
+        if (!item || state.coins < item.cost) return false;
         const isConsumable = item.category === 'boost' || item.category === 'utility';
         if (!isConsumable && state.inventory.includes(itemId)) return false;
 
-        if (state.coins < item.cost) return false; // Too poor
-
-        const newCoins = state.coins - item.cost;
-        let newInventory = state.inventory;
-
-        // Only add non-consumables (and unique utility items like streak freeze if we want to limit them) to inventory
-        // For now, let's treat Streak Freeze as stackable logic but simplistic inventory:
-        // If I want to allow buying multiple streak freezes, I need a count.
-        // Current system: inventory is string[]. uniqueness is checked.
-        // So Streak Freeze is unique. ONE at a time.
-        // Boosts are consumable immediately, so NOT in inventory.
-
-        if (item.category !== 'boost') {
-            // Themes, Cosmetics, and Streak Freeze (if we want max 1)
-            // If streak freeze is consumable, we should allow buying it again if we don't have one?
-            // Logic above `if (!isConsumable && state.inventory.includes(itemId))` handles "Max 1".
-            // So if I have a streak freeze, I can't buy another.
-            // That's fine for MVP.
-            newInventory = [...state.inventory, itemId];
-        }
-
-        let newBoosts = state.activeBoosts;
-        if (item.category === 'boost' && item.durationHours) {
+        const patch: any = { coins: state.coins - item.cost };
+        if (item.category !== 'boost') patch.inventory = [...state.inventory, itemId];
+        else if (item.durationHours) {
             const type = item.id.includes('xp') ? 'xp' : 'coin';
-            const multiplier = item.id.includes('xp') ? 2 : 1.5;
-            newBoosts = [...state.activeBoosts, {
-                id: uid(),
-                type: type as 'xp' | 'coin',
-                multiplier,
-                expiresAt: Date.now() + (item.durationHours * 3600000)
-            }];
+            patch.activeBoosts = [...state.activeBoosts, { id: uid(), type, multiplier: type === 'xp' ? 2 : 1.5, expiresAt: Date.now() + (item.durationHours * 3600000) }];
         }
-
-        set({ coins: newCoins, inventory: newInventory, activeBoosts: newBoosts });
+        set(patch);
         autoSave(get);
         return true;
     },
-    equipItem: (itemId, category) => {
+    equipItem: (itemId: string, category: string) => {
         const state = get();
-
         if (category === 'title') {
             if (itemId === 'Novice' || state.unlockedAchievements.includes(itemId)) {
-                set(s => ({ equipped: { ...s.equipped, title: itemId } }));
+                set((s: AetherState) => ({ equipped: { ...s.equipped, title: itemId } }));
                 autoSave(get);
             }
             return;
         }
-
-        // Verify ownership
         if (!state.inventory.includes(itemId) && itemId !== 'default') return;
-
         const item = SHOP_ITEMS.find(i => i.id === itemId);
-        // Allow equipping 'default' to reset
-        if (itemId === 'default') {
-            set(s => ({ equipped: { ...s.equipped, [category]: 'default' } }));
-            autoSave(get);
-            return;
-        }
-
-        if (item && (item.category === 'theme' || category === 'theme')) {
-            set(s => ({ equipped: { ...s.equipped, theme: item.value || 'default' } }));
-        }
+        set((s: AetherState) => ({ equipped: { ...s.equipped, [category]: item?.value || 'default' } }));
         autoSave(get);
     },
     checkBoosts: () => {
         const state = get();
         const now = Date.now();
-        if (state.activeBoosts.some(b => b.expiresAt < now)) {
-            set({ activeBoosts: state.activeBoosts.filter(b => b.expiresAt > now) });
+        if (state.activeBoosts.some((b: any) => b.expiresAt < now)) {
+            set({ activeBoosts: state.activeBoosts.filter((b: any) => b.expiresAt > now) });
             autoSave(get);
         }
     },
 
-    // AI Economy
     spendAIToken: (amount = 1) => {
         const state = get();
-        if (state.aiTokens >= amount) {
-            set({ aiTokens: state.aiTokens - amount });
-            autoSave(get);
-            return true;
-        }
+        if (state.aiTokens >= amount) { set({ aiTokens: state.aiTokens - amount }); autoSave(get); return true; }
         return false;
     },
-    refillAITokens: (amount) => {
+    refillAITokens: (amount?: number) => {
         const state = get();
         const newTotal = amount ? state.aiTokens + amount : state.maxAiTokens;
         set({ aiTokens: Math.min(newTotal, state.maxAiTokens) });
         autoSave(get);
     },
+    buyAITokens: (amount: number, coinCost: number) => {
+        const state = get();
+        if (state.coins >= coinCost) { set({ coins: state.coins - coinCost, aiTokens: state.aiTokens + amount }); autoSave(get); return true; }
+        return false;
+    },
     checkAndRefillDailyTokens: () => {
         const state = get();
         const today = new Date().setHours(0, 0, 0, 0);
         if (state.lastTokenRefill < today) {
-            set({
-                aiTokens: state.maxAiTokens,
-                lastTokenRefill: Date.now()
-            });
+            set({ aiTokens: state.maxAiTokens, lastTokenRefill: Date.now() });
             autoSave(get);
         }
-    }
+    },
+    getTimeUntilNextRefill: () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        return tomorrow.getTime() - Date.now();
+    },
+
+    followUser: async (targetUid: string) => {
+        if (get().following.includes(targetUid)) return;
+        set((s: AetherState) => ({ following: [...s.following, targetUid] }));
+        autoSave(get);
+    },
+    unfollowUser: async (targetUid: string) => {
+        set((s: AetherState) => ({ following: s.following.filter(id => id !== targetUid) }));
+        autoSave(get);
+    },
+    sendFriendRequest: async (targetUid: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user || user.uid === targetUid) return;
+        try {
+            const targetRef = doc(db, 'users', targetUid, 'data', 'aether');
+            await updateDoc(targetRef, { pendingFriends: arrayUnion(user.uid) });
+        } catch (error) { console.error(error); }
+    },
+    acceptFriendRequest: async (targetUid: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        try {
+            const myRef = doc(db, 'users', user.uid, 'data', 'aether');
+            const targetRef = doc(db, 'users', targetUid, 'data', 'aether');
+            await updateDoc(myRef, { friends: arrayUnion(targetUid), pendingFriends: arrayRemove(targetUid) });
+            await updateDoc(targetRef, { friends: arrayUnion(user.uid) });
+            autoSave(get);
+        } catch (error) { console.error(error); }
+    },
+    declineFriendRequest: async (targetUid: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        try {
+            const myRef = doc(db, 'users', user.uid, 'data', 'aether');
+            await updateDoc(myRef, { pendingFriends: arrayRemove(targetUid) });
+            autoSave(get);
+        } catch (error) { console.error(error); }
+    },
+    removeFriend: async (targetUid: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        try {
+            const myRef = doc(db, 'users', user.uid, 'data', 'aether');
+            const targetRef = doc(db, 'users', targetUid, 'data', 'aether');
+            await updateDoc(myRef, { friends: arrayRemove(targetUid) });
+            await updateDoc(targetRef, { friends: arrayRemove(user.uid) });
+            autoSave(get);
+        } catch (error) { console.error(error); }
+    },
+    rateUser: async (targetUid: string, rating: number) => {
+        set((s: AetherState) => ({ ratings: { ...s.ratings, [targetUid]: rating } }));
+        autoSave(get);
+    },
+
+    markTutorialSeen: (pageId: string) => {
+        if (!get().seenTutorials.includes(pageId)) {
+            set((s: AetherState) => ({ seenTutorials: [...s.seenTutorials, pageId] }));
+            autoSave(get);
+        }
+    },
+    toggleWidget: (widgetId: string) => {
+        const current = get().widgetStates[widgetId]?.minimized || false;
+        set((s: AetherState) => ({ widgetStates: { ...s.widgetStates, [widgetId]: { minimized: !current } } }));
+        autoSave(get);
+    },
+    clearExpPopup: (id: number) => set((s: AetherState) => ({ expPopups: s.expPopups.filter((p: any) => p.id !== id) }))
 }));

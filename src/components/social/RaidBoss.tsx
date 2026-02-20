@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sword, Users, Clock, Trophy } from 'lucide-react';
+import { Sword, Users, Clock, Trophy, Sparkles } from 'lucide-react';
 import { useGuildsStore } from '../../store/guildsStore';
+import { useAuthStore } from '../../store/authStore';
 import { formatDistanceToNow } from 'date-fns';
+import { Tooltip } from '../ui/Tooltip';
 
 export const RaidBoss: React.FC = () => {
     const { activeRaid, attackBoss, startRaid } = useGuildsStore();
@@ -117,34 +119,56 @@ export const RaidBoss: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 relative">
-                    <button
-                        onClick={handleAttack}
-                        disabled={isDead || onCooldown}
-                        className={`flex-1 py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-all relative overflow-hidden
-                            ${isDead
-                                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                : onCooldown
-                                    ? 'bg-gray-700 text-gray-400 cursor-wait'
-                                    : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95'}`}
-                    >
-                        {isDead ? (
-                            <>
-                                <Trophy className="w-5 h-5" />
-                                Defeated
-                            </>
-                        ) : onCooldown ? (
-                            <>
-                                <Clock className="w-5 h-5 animate-pulse" />
-                                Recharging...
-                            </>
-                        ) : (
-                            <>
-                                <Sword className="w-5 h-5" />
-                                MANUAL ATTACK
-                            </>
+                <div className="flex flex-col gap-3 relative">
+                    <Tooltip content={isDead ? "This boss has been defeated." : (activeRaid.memberStats?.[useAuthStore.getState().user?.uid || '']?.attackCountToday || 0) >= 3 ? "Daily attack limit reached." : onCooldown ? "Aether battery recharging..." : "Unleash a high-damage strike!"} delay={0}>
+                        <button
+                            onClick={handleAttack}
+                            disabled={isDead || onCooldown || (activeRaid.memberStats?.[useAuthStore.getState().user?.uid || '']?.attackCountToday || 0) >= 3}
+                            className={`flex-1 py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-all relative overflow-hidden
+                                ${isDead
+                                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                    : (activeRaid.memberStats?.[useAuthStore.getState().user?.uid || '']?.attackCountToday || 0) >= 3
+                                        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 cursor-not-allowed'
+                                        : onCooldown
+                                            ? 'bg-gray-700 text-gray-400 cursor-wait'
+                                            : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95'}`}
+                        >
+                            {isDead ? (
+                                <>
+                                    <Trophy className="w-5 h-5" />
+                                    Defeated
+                                </>
+                            ) : (activeRaid.memberStats?.[useAuthStore.getState().user?.uid || '']?.attackCountToday || 0) >= 3 ? (
+                                <>
+                                    <Clock className="w-5 h-5" />
+                                    Limit Reached
+                                </>
+                            ) : onCooldown ? (
+                                <>
+                                    <Clock className="w-5 h-5 animate-pulse" />
+                                    Recharging...
+                                </>
+                            ) : (
+                                <>
+                                    <Sword className="w-5 h-5" />
+                                    MANUAL ATTACK
+                                </>
+                            )}
+                        </button>
+                    </Tooltip>
+
+                    <div className="flex justify-between items-center px-1">
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                            <Sword className="w-3 h-3" /> Attacks: {activeRaid.memberStats?.[useAuthStore.getState().user?.uid || '']?.attackCountToday || 0} / 3
+                        </div>
+                        {Object.keys(activeRaid.contributors).length >= 3 && (
+                            <Tooltip content="More active members grant a damage multiplier!" delay={0}>
+                                <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                                    <Sparkles className="w-3 h-3" /> Ensemble Bonus x{Object.keys(activeRaid.contributors).length >= 5 ? '1.5' : '1.2'}
+                                </div>
+                            </Tooltip>
                         )}
-                    </button>
+                    </div>
                 </div>
                 {!isDead && (
                     <p className="text-center text-[10px] text-rose-400 mt-3 flex items-center justify-center gap-1 font-bold">

@@ -14,6 +14,8 @@ import { TabBar } from '../components/ui/TabBar';
 import { CircularProgress } from '../components/ui/CircularProgress';
 import { CountdownTimer } from '../components/ui/CountdownTimer';
 import { FoodSearch } from '../components/ui/FoodSearch';
+import { useAetherStore } from '../store/aetherStore';
+import { TutorialModal } from '../components/ui/TutorialModal';
 import { useTrackersStore } from '../store/trackersStore';
 import type { HabitTracker as Habit } from '../store/trackersStore';
 import { calculateBMI, getHealthyWeightRange } from '../lib/bmiCalculator';
@@ -40,6 +42,22 @@ export const TrackersPage: React.FC = () => {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState(location.state?.tab || 'water');
 
+    const seenTutorials = useAetherStore(s => s.seenTutorials);
+    const markTutorialSeen = useAetherStore(s => s.markTutorialSeen);
+    const [showTutorial, setShowTutorial] = useState(false);
+
+    const trackerSteps = [
+        { title: 'The Great Conversion', content: 'Trackers are where your physical actions are converted into digital vitality. Consistency is key.', icon: <Droplets className="w-4 h-4 text-cyan-400" /> },
+        { title: 'The Multi-Tool', content: 'Use the tabs to switch between different domains of health. Each one contributes to your overall ranking.', icon: <Activity className="w-4 h-4 text-emerald-400" /> },
+        { title: 'History & Trends', content: 'Scroll down on most trackers to see your weekly performance and historical trends.', icon: <History className="w-4 h-4 text-amber-400" /> }
+    ];
+
+    useEffect(() => {
+        if (!seenTutorials.includes('trackers')) {
+            setTimeout(() => setShowTutorial(true), 800);
+        }
+    }, [seenTutorials]);
+
     useEffect(() => {
         if (location.state?.tab) {
             setTimeout(() => setActiveTab(location.state.tab), 0);
@@ -48,6 +66,15 @@ export const TrackersPage: React.FC = () => {
 
     return (
         <PageTransition className="space-y-5">
+            <TutorialModal
+                isOpen={showTutorial}
+                onClose={() => {
+                    setShowTutorial(false);
+                    markTutorialSeen('trackers');
+                }}
+                steps={trackerSteps}
+                pageTitle="Laboratory of Transmutation"
+            />
             <div>
                 <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Health Trackers</h1>
                 <p className="text-sm text-gray-500 mt-1">Track every aspect of your wellness journey</p>

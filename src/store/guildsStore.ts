@@ -41,6 +41,7 @@ export interface Raid {
     startTime: string;
     endTime: string;
     contributors: Record<string, number>; // uid -> damage dealt
+    memberStats?: Record<string, { lastAttack: number; attackCountToday: number }>;
 }
 
 interface GuildsState {
@@ -63,6 +64,12 @@ interface GuildsState {
     startRaid: () => Promise<void>;
     attackBoss: () => Promise<number>; // Returns damage dealt
     dealBossDamage: (amount: number) => Promise<void>; // Passive damage from habits
+
+    // Leader Controls
+    kickMember: (uid: string) => Promise<void>;
+    disbandGuild: () => Promise<void>;
+    renameGuild: (newName: string) => Promise<void>;
+    updateGuildTheme: (newTheme: string) => Promise<void>;
 }
 
 export const useGuildsStore = create<GuildsState>((set, get) => ({
@@ -231,32 +238,52 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
         const { activeGuild, activeRaid } = get();
         if (!user || !activeGuild || !activeRaid || activeRaid.status !== 'active') return 0;
 
+        // Check Daily Limit (3 attacks)
+        const today = new Date().setHours(0, 0, 0, 0);
+        const userStats = activeRaid.memberStats?.[user.uid] || { lastAttack: 0, attackCountToday: 0 };
+        const isNewDay = userStats.lastAttack < today;
+        const currentAttacks = isNewDay ? 0 : userStats.attackCountToday;
+
+        if (currentAttacks >= 3) {
+            throw new Error("Daily manual attack limit (3) reached. Help with passive damage!");
+        }
+
         const aetherState = useAetherStore.getState();
         const userLevel = aetherState.level || 1;
         const streak = aetherState.streak || 0;
 
+        // Ensemble Bonus Check (if 3+ members contributed in this raid)
+        const contributorCount = Object.keys(activeRaid.contributors).length;
+        const ensembleMultiplier = contributorCount >= 5 ? 1.5 : (contributorCount >= 3 ? 1.2 : 1.0);
+
         // Damage Formula
-        // Base: 10
-        // Level Bonus: Level * 2
-        // Streak Bonus: Streak * 5
-        // Random: 0-20
-        // Crit Chance: 10% (x2)
-        let damage = 10 + (userLevel * 2) + (streak * 5) + Math.floor(Math.random() * 20);
+        let damage = (10 + (userLevel * 2) + (streak * 5) + Math.floor(Math.random() * 20)) * ensembleMultiplier;
         const isCrit = Math.random() < 0.1;
         if (isCrit) damage *= 2;
+        damage = Math.floor(damage);
 
         const newHp = Math.max(0, activeRaid.currentHp - damage);
         const status: Raid['status'] = newHp === 0 ? 'defeated' : 'active';
 
+        // Update Stats
+        const updatedStats = {
+            ...activeRaid.memberStats,
+            [user.uid]: {
+                lastAttack: Date.now(),
+                attackCountToday: currentAttacks + 1
+            }
+        };
+
         // Optimistic Update
-        const updatedRaid = {
+        const updatedRaid: Raid = {
             ...activeRaid,
             currentHp: newHp,
             status,
             contributors: {
                 ...activeRaid.contributors,
                 [user.uid]: (activeRaid.contributors[user.uid] || 0) + damage
-            }
+            },
+            memberStats: updatedStats
         };
         set({ activeRaid: updatedRaid });
 
@@ -266,10 +293,10 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             await updateDoc(raidRef, {
                 currentHp: newHp,
                 status,
-                [`contributors.${user.uid}`]: (activeRaid.contributors[user.uid] || 0) + damage
+                [`contributors.${user.uid}`]: (activeRaid.contributors[user.uid] || 0) + damage,
+                [`memberStats.${user.uid}`]: updatedStats[user.uid]
             });
 
-            // If defeated, maybe give rewards? (Future)
             if (status === 'defeated') {
                 await addDoc(collection(db, 'guilds', activeGuild.id, 'messages'), {
                     senderId: 'system',
@@ -283,7 +310,7 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             return damage;
         } catch (error) {
             console.error("Attack failed:", error);
-            // Revert on error would be ideal, but for now just log
+            // In a real app we'd rollback optimistic UI here
             return 0;
         }
     },
@@ -328,6 +355,69 @@ export const useGuildsStore = create<GuildsState>((set, get) => ({
             }
         } catch (error) {
             console.error("Passive damage failed:", error);
+        }
+    },
+
+    kickMember: async (targetUid) => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild } = get();
+        if (!user || !activeGuild || activeGuild.leaderId !== user.uid) return;
+        if (targetUid === user.uid) throw new Error("Cannot kick yourself");
+
+        try {
+            await updateDoc(doc(db, 'guilds', activeGuild.id), {
+                memberIds: arrayRemove(targetUid)
+            });
+            // We'd also notify the user or update their profile via cloud function
+        } catch (error) {
+            console.error("Kick failed:", error);
+        }
+    },
+
+    disbandGuild: async () => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild } = get();
+        if (!user || !activeGuild || activeGuild.leaderId !== user.uid) return;
+
+        if (!window.confirm("ARE YOU ABSOLUTELY SURE? This will delete the guild and remove all members.")) return;
+
+        try {
+            // Delete guild doc
+            await setDoc(doc(db, 'guilds', activeGuild.id), { ...activeGuild, deleted: true }); // Soft delete or full delete
+            // For now, let's just clear user's guildId first to prevent locking
+            const aetherState = useAetherStore.getState();
+            if (aetherState.profile) {
+                const newProfile = { ...aetherState.profile };
+                delete newProfile.guildId;
+                aetherState.setProfile(newProfile);
+            }
+            set({ activeGuild: null, messages: [], activeRaid: null });
+        } catch (error) {
+            console.error("Disband failed:", error);
+        }
+    },
+
+    renameGuild: async (newName) => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild } = get();
+        if (!user || !activeGuild || activeGuild.leaderId !== user.uid) return;
+
+        try {
+            await updateDoc(doc(db, 'guilds', activeGuild.id), { name: newName });
+        } catch (error) {
+            console.error("Rename failed:", error);
+        }
+    },
+
+    updateGuildTheme: async (newTheme) => {
+        const user = useAuthStore.getState().user;
+        const { activeGuild } = get();
+        if (!user || !activeGuild || activeGuild.leaderId !== user.uid) return;
+
+        try {
+            await updateDoc(doc(db, 'guilds', activeGuild.id), { theme: newTheme });
+        } catch (error) {
+            console.error("Theme update failed:", error);
         }
     },
 

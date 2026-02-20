@@ -1,29 +1,72 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield, Trophy, LogOut, Clock, Calendar, Users } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, MessageSquare, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield, Trophy, LogOut, Clock, Calendar, Users, Coins, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
 
-const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/trackers', icon: Activity, label: 'Trackers' },
-    { path: '/reports', icon: BarChart3, label: 'Reports' },
-    { path: '/gaming', icon: Gamepad2, label: 'Gaming' },
-    { path: '/journal', icon: Book, label: 'Journal' },
-    { path: '/meditation', icon: Wind, label: 'Meditation' },
-    { path: '/chat', icon: MessageCircle, label: 'Alchemist' },
-    { path: '/guilds', icon: Shield, label: 'Guilds' },
-    { path: '/community', icon: Users, label: 'Community' },
-    { path: '/leaderboard', icon: Trophy, label: 'Leaders' },
-    { path: '/profile', icon: User, label: 'Profile' },
+const navGroups = [
+    {
+        label: 'Sanctum',
+        items: [
+            { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+            { path: '/trackers', icon: Activity, label: 'Trackers' },
+            { path: '/journal', icon: Book, label: 'Journal' },
+            { path: '/meditation', icon: Wind, label: 'Meditation' },
+        ]
+    },
+    {
+        label: 'Alchemist',
+        items: [
+            { path: '/chat', icon: MessageCircle, label: 'Alchemist' },
+            { path: '/reports', icon: BarChart3, label: 'Reports' },
+            { path: '/treasury', icon: Coins, label: 'Treasury' },
+        ]
+    },
+    {
+        label: 'World',
+        items: [
+            { path: '/community', icon: Users, label: 'Community' },
+            { path: '/messages', icon: MessageSquare, label: 'Telepathy' },
+            { path: '/guilds', icon: Shield, label: 'Guilds' },
+            { path: '/leaderboard', icon: Trophy, label: 'Leaders' },
+        ]
+    },
+    {
+        label: 'Arcade',
+        items: [
+            { path: '/gaming', icon: Gamepad2, label: 'Arcade' },
+            { path: '/shop', icon: Shield, label: 'Shop' }, // Fixed icon to something more appropriate if needed, but keeping consistently
+        ]
+    },
+    {
+        label: 'Account',
+        items: [
+            { path: '/profile', icon: User, label: 'Profile' },
+        ]
+    }
 ];
+
+const allNavItems = navGroups.flatMap(g => g.items);
 
 export const NavBar: React.FC = () => {
     const location = useLocation();
     const { features } = useUserStore();
     const logout = useAuthStore(s => s.signOut);
     const [time, setTime] = React.useState(new Date());
+    const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>(() => {
+        const saved = localStorage.getItem('collapsedNavGroups');
+        return saved ? JSON.parse(saved) : {};
+    });
+
+    const toggleGroup = (label: string) => {
+        setCollapsedGroups(prev => {
+            const next = { ...prev, [label]: !prev[label] };
+            localStorage.setItem('collapsedNavGroups', JSON.stringify(next));
+            return next;
+        });
+    };
 
     React.useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
@@ -47,33 +90,60 @@ export const NavBar: React.FC = () => {
                     </div>
 
                     {/* Nav links */}
-                    <nav className="flex flex-col gap-1 flex-1">
-                        {navItems.map((item) => {
-                            const isLocked =
-                                (item.path === '/chat' && !features.canAccessAI) ||
-                                (item.path === '/reports' && !features.canAccessReports) ||
-                                (item.path === '/gaming' && !features.canAccessGamification);
-
+                    {/* Nav groups */}
+                    <nav className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+                        {navGroups.map((group) => {
+                            const isCollapsed = collapsedGroups[group.label];
                             return (
-                                <NavLink
-                                    key={item.path}
-                                    to={item.path}
-                                    className={cn(
-                                        'nav-item',
-                                        location.pathname === item.path && 'nav-item-active',
-                                        isLocked && 'opacity-50 grayscale'
-                                    )}
-                                >
-                                    <div className="relative">
-                                        <item.icon className="w-5 h-5" />
-                                        {isLocked && (
-                                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gray-500 rounded-full flex items-center justify-center border border-[#060714]">
-                                                <div className="w-1.5 h-1.5 text-white">🔒</div>
-                                            </div>
+                                <div key={group.label} className="flex flex-col gap-1">
+                                    <button
+                                        onClick={() => toggleGroup(group.label)}
+                                        className="px-3 py-2 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-colors group/header"
+                                    >
+                                        <span className="opacity-50 group-hover/header:opacity-100">{group.label}</span>
+                                        {isCollapsed ? <ChevronDown className="w-3 h-3 opacity-30" /> : <ChevronUp className="w-3 h-3 opacity-30" />}
+                                    </button>
+                                    <AnimatePresence initial={false}>
+                                        {!isCollapsed && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="flex flex-col gap-1 overflow-hidden"
+                                            >
+                                                {group.items.map((item) => {
+                                                    const isLocked =
+                                                        (item.path === '/chat' && !features.canAccessAI) ||
+                                                        (item.path === '/reports' && !features.canAccessReports) ||
+                                                        (item.path === '/gaming' && !features.canAccessGamification);
+
+                                                    return (
+                                                        <NavLink
+                                                            key={item.path}
+                                                            to={item.path}
+                                                            className={cn(
+                                                                'nav-item',
+                                                                location.pathname === item.path && 'nav-item-active',
+                                                                isLocked && 'opacity-50 grayscale'
+                                                            )}
+                                                        >
+                                                            <div className="relative">
+                                                                <item.icon className="w-5 h-5" />
+                                                                {isLocked && (
+                                                                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gray-500 rounded-full flex items-center justify-center border border-[#060714]">
+                                                                        <div className="w-1.5 h-1.5 text-white">🔒</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-sm font-medium">{item.label}</span>
+                                                        </NavLink>
+                                                    );
+                                                })}
+                                            </motion.div>
                                         )}
-                                    </div>
-                                    <span className="text-sm font-medium">{item.label}</span>
-                                </NavLink>
+                                    </AnimatePresence>
+                                </div>
                             );
                         })}
                     </nav>
@@ -108,7 +178,7 @@ export const NavBar: React.FC = () => {
             {/* Mobile bottom bar */}
             <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-gradient-to-t from-[#060714] to-transparent">
                 <div className="glass rounded-2xl flex items-center gap-2 px-2 py-2 overflow-x-auto no-scrollbar snap-x snap-mandatory">
-                    {navItems.map((item) => (
+                    {allNavItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}

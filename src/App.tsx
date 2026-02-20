@@ -33,6 +33,8 @@ const ShopPage = lazy(() => import('./pages/ShopPage').then(module => ({ default
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage').then(module => ({ default: module.LeaderboardPage })));
 const CommunityPage = lazy(() => import('./pages/CommunityPage').then(module => ({ default: module.CommunityPage })));
+const MessagesPage = lazy(() => import('./pages/social/MessagesPage').then(module => ({ default: module.MessagesPage })));
+const TreasuryPage = lazy(() => import('./pages/TreasuryPage').then(module => ({ default: module.TreasuryPage })));
 
 import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
@@ -145,6 +147,8 @@ const App: React.FC = () => {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/community" element={<CommunityPage />} />
+              <Route path="/messages" element={<MessagesPage />} />
+              <Route path="/treasury" element={<TreasuryPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

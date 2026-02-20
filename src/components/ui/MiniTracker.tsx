@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 
 interface MiniTrackerProps {
     icon: LucideIcon;
@@ -26,7 +27,14 @@ export const MiniTracker: React.FC<MiniTrackerProps> = ({
 }) => {
     const navigate = useNavigate();
 
-    return (
+    const descriptions: Record<string, string> = {
+        'Water': 'Track your hydration fragments. 1 glass (250ml) adds to your Aether Integrity.',
+        'Steps': 'Motion is the catalyst for conversion. Reach your daily step target to optimize flow.',
+        'Calories': 'The fuel of your transmutation. Log sustenance to balance your internal energy.',
+        'Sugar': 'A volatile impurity. Keep sugar intake low to prevent metabolic disruption.'
+    };
+
+    const trackerContent = (
         <motion.button
             layoutId={`tracker-card-${label.toLowerCase()}`}
             whileHover={{ scale: 1.02 }}
@@ -58,4 +66,10 @@ export const MiniTracker: React.FC<MiniTrackerProps> = ({
             </div>
         </motion.button>
     );
+
+    return descriptions[label] ? (
+        <Tooltip content={descriptions[label]}>
+            {trackerContent}
+        </Tooltip>
+    ) : trackerContent;
 };

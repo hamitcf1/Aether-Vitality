@@ -4,11 +4,26 @@ import { ShoppingBag, Coins, Check, Zap, Shield, Palette } from 'lucide-react';
 import { useAetherStore } from '../store/aetherStore';
 import { SHOP_ITEMS } from '../lib/ShopData';
 import type { ShopItem, ShopCategory } from '../lib/ShopData';
+import { TutorialModal } from '../components/ui/TutorialModal';
+import { Tooltip } from '../components/ui/Tooltip';
 
 export const ShopPage: React.FC = () => {
-    const { coins, inventory, equipped, purchaseItem, equipItem } = useAetherStore();
+    const { coins, inventory, equipped, purchaseItem, equipItem, seenTutorials, markTutorialSeen } = useAetherStore();
     const [activeTab, setActiveTab] = useState<ShopCategory | 'all'>('all');
     const [purchaseStatus, setPurchaseStatus] = useState<{ id: string, status: 'success' | 'error' } | null>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
+
+    const shopSteps = [
+        { title: 'The Grand Bazaar', content: 'Welcome to the Aether Shop. Here you can exchange your Coins for powerful artifacts and cosmetic themes.', icon: <ShoppingBag className="w-4 h-4 text-emerald-400" /> },
+        { title: 'Alchemy Themes', content: 'Themes change the entire aesthetic of your sanctum. Cyberpunk, Gold, and Emerald variants are available.', icon: <Palette className="w-4 h-4 text-pink-400" /> },
+        { title: 'Potent Boosts', content: 'Utility items and boosts can help you recover HP, gain more XP, or protect your streaks.', icon: <Zap className="w-4 h-4 text-amber-400" /> }
+    ];
+
+    React.useEffect(() => {
+        if (!seenTutorials.includes('shop')) {
+            setTimeout(() => setShowTutorial(true), 800);
+        }
+    }, [seenTutorials]);
 
     const categories: { id: ShopCategory | 'all', label: string, icon: React.ElementType }[] = [
         { id: 'all', label: 'All Items', icon: ShoppingBag },
@@ -34,6 +49,15 @@ export const ShopPage: React.FC = () => {
 
     return (
         <div className="min-h-screen pb-20 pt-8 px-4 max-w-4xl mx-auto">
+            <TutorialModal
+                isOpen={showTutorial}
+                onClose={() => {
+                    setShowTutorial(false);
+                    markTutorialSeen('shop');
+                }}
+                steps={shopSteps}
+                pageTitle="Aether Shop"
+            />
             {/* Header / Balance */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
@@ -145,16 +169,18 @@ export const ShopPage: React.FC = () => {
                                             </button>
                                         )
                                     ) : (
-                                        <button
-                                            onClick={() => handlePurchase(item)}
-                                            disabled={!canAfford}
-                                            className={`flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all
-                                                ${canAfford
-                                                    ? 'bg-white/5 hover:bg-emerald-500 hover:text-white text-emerald-400 border border-emerald-500/30'
-                                                    : 'bg-white/5 text-gray-600 cursor-not-allowed border border-white/5'}`}
-                                        >
-                                            {isBoost && isOwned ? 'Buy Again' : 'Purchase'}
-                                        </button>
+                                        <Tooltip content={canAfford ? `Purchase for ${item.cost} Coins` : "Insufficient Coins"} delay={0}>
+                                            <button
+                                                onClick={() => handlePurchase(item)}
+                                                disabled={!canAfford}
+                                                className={`flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all
+                                                    ${canAfford
+                                                        ? 'bg-white/5 hover:bg-emerald-500 hover:text-white text-emerald-400 border border-emerald-500/30'
+                                                        : 'bg-white/5 text-gray-600 cursor-not-allowed border border-white/5'}`}
+                                            >
+                                                {isBoost && isOwned ? 'Buy Again' : 'Purchase'}
+                                            </button>
+                                        </Tooltip>
                                     )}
                                 </div>
                             </motion.div>

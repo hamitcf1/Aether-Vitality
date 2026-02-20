@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Trophy, Gamepad2, Star, Lock, Unlock, Crown, Sparkles,
-    Quote, Flame, Target, Zap, Gift
+    Quote, Flame, Target, Zap, Gift, Coins
 } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -284,6 +284,11 @@ export const GamingPage: React.FC = () => {
                             >
                                 <span className="text-xl block">{unlocked ? ach.icon : '🔒'}</span>
                                 <p className="text-[9px] font-bold text-white mt-1 truncate">{ach.title}</p>
+                                {ach.rewardCoins && (
+                                    <p className="text-[8px] font-bold text-emerald-400 mt-0.5 flex items-center justify-center gap-0.5">
+                                        +{ach.rewardCoins} <Coins className="w-2.5 h-2.5" />
+                                    </p>
+                                )}
                             </div>
                         );
                     })}

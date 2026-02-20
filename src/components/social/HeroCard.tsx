@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trophy, Shield, Star, User, Hash } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
 import { GlassCard } from '../ui/GlassCard';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAetherStore } from '../../store/aetherStore';
+import { useAuthStore } from '../../store/authStore';
 import type { UserProfileData as UserProfile, EquippedItemsData as EquippedItems } from '../../lib/firebaseTypes';
 import { ACHIEVEMENTS } from '../../lib/achievements';
 
@@ -18,6 +21,11 @@ interface PublicUserData {
     level: number;
     equipped: EquippedItems;
     unlockedAchievements: string[];
+    followers?: string[];
+    following?: string[];
+    friends?: string[];
+    pendingFriends?: string[];
+    ratings?: Record<string, number>;
 }
 
 export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) => {
@@ -43,7 +51,12 @@ export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) =
                             profile: userData.profile,
                             level: userData.level || 1,
                             equipped: userData.equipped || { theme: 'default', frame: 'none', title: 'Novice' },
-                            unlockedAchievements: userData.unlockedAchievements || []
+                            unlockedAchievements: userData.unlockedAchievements || [],
+                            followers: userData.followers || [],
+                            following: userData.following || [],
+                            friends: userData.friends || [],
+                            pendingFriends: userData.pendingFriends || [],
+                            ratings: userData.ratings || {}
                         });
                     }
                 } else {
@@ -120,37 +133,134 @@ export const HeroCard: React.FC<HeroCardProps> = ({ userId, isOpen, onClose }) =
                                             </p>
                                         )}
                                         <div className="flex items-center gap-2 mt-3">
-                                            <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider">
-                                                Level {data.level}
-                                            </span>
-                                            {data.profile.guildId && (
-                                                <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                                                    <Shield className="w-3 h-3" /> Guild Member
+                                            <Tooltip content="Level indicates your overall progression and power in the Aetherius realm." delay={0}>
+                                                <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider">
+                                                    Level {data.level}
                                                 </span>
+                                            </Tooltip>
+                                            {data.profile.guildId && (
+                                                <Tooltip content="Member of a sworn brotherhood." delay={0}>
+                                                    <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                                                        <Shield className="w-3 h-3" /> Guild Member
+                                                    </span>
+                                                </Tooltip>
                                             )}
+                                        </div>
+
+                                        {/* Social Followers/Following Count */}
+                                        <div className="flex gap-4 mt-4">
+                                            <div className="text-center">
+                                                <div className="text-sm font-black text-white">{data.followers?.length || 0}</div>
+                                                <div className="text-[9px] text-gray-500 uppercase font-bold tracking-widest">Followers</div>
+                                            </div>
+                                            <div className="h-6 w-px bg-white/5" />
+                                            <div className="text-center">
+                                                <div className="text-sm font-black text-white">{data.following?.length || 0}</div>
+                                                <div className="text-[9px] text-gray-500 uppercase font-bold tracking-widest">Following</div>
+                                            </div>
+                                            <div className="h-6 w-px bg-white/5" />
+                                            <div className="text-center">
+                                                <div className="text-sm font-black text-white">
+                                                    {(() => {
+                                                        const values = Object.values(data.ratings || {});
+                                                        if (values.length === 0) return '0.0';
+                                                        return (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
+                                                    })()}
+                                                </div>
+                                                <div className="text-[9px] text-gray-500 uppercase font-bold tracking-widest">Rating</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="grid grid-cols-2 gap-3 mb-6">
+                                        <button
+                                            onClick={() => {
+                                                const store = useAetherStore.getState();
+                                                const isFollowing = store.following.includes(userId);
+                                                if (isFollowing) store.unfollowUser(userId);
+                                                else store.followUser(userId);
+                                            }}
+                                            className={`py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all
+                                                ${useAetherStore.getState().following.includes(userId)
+                                                    ? 'bg-white/5 text-gray-400 border border-white/10'
+                                                    : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'}`}
+                                        >
+                                            {useAetherStore.getState().following.includes(userId) ? 'Unfollow' : 'Follow'}
+                                        </button>
+                                        <button className="py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2">
+                                            Message
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const store = useAetherStore.getState();
+                                                const me = useAuthStore.getState().user;
+                                                const isFriend = data.friends?.includes(me?.uid || '');
+                                                const isPending = data.pendingFriends?.includes(me?.uid || '');
+
+                                                if (isFriend) store.removeFriend(userId);
+                                                else if (!isPending) store.sendFriendRequest(userId);
+                                            }}
+                                            className={`col-span-2 py-2.5 rounded-xl font-bold text-xs transition-all border
+                                                ${data.friends?.includes(useAuthStore.getState().user?.uid || '')
+                                                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                                    : data.pendingFriends?.includes(useAuthStore.getState().user?.uid || '')
+                                                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                        : 'bg-white/5 text-emerald-400 border-white/10 hover:bg-emerald-500/10'}`}
+                                        >
+                                            {data.friends?.includes(useAuthStore.getState().user?.uid || '')
+                                                ? 'Remove Friend'
+                                                : data.pendingFriends?.includes(useAuthStore.getState().user?.uid || '')
+                                                    ? 'Friend Request Sent'
+                                                    : 'Add Friend'}
+                                        </button>
+                                    </div>
+
+                                    {/* Rating Area */}
+                                    <div className="bg-black/20 rounded-2xl p-4 mb-6 text-center">
+                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-2 tracking-widest">Rate Seeker</p>
+                                        <div className="flex justify-center gap-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button
+                                                    key={star}
+                                                    onClick={() => useAetherStore.getState().rateUser(userId, star)}
+                                                    className="p-1 hover:scale-125 transition-transform"
+                                                >
+                                                    <Star
+                                                        className={`w-6 h-6 ${useAetherStore.getState().ratings[userId] >= star || (data.ratings?.[useAuthStore.getState().user?.uid || ''] || 0) >= star
+                                                            ? 'text-amber-400 fill-amber-400'
+                                                            : 'text-gray-700'
+                                                            }`}
+                                                    />
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
 
                                     {/* Stats Grid */}
                                     <div className="grid grid-cols-2 gap-3 mb-6">
-                                        <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
-                                            <Trophy className="w-8 h-8 text-amber-400 p-1.5 bg-amber-500/10 rounded-lg" />
-                                            <div>
-                                                <div className="text-lg font-bold text-white mb-0.5">
-                                                    {data.unlockedAchievements.length}
+                                        <Tooltip content="Divine markers of your dedication." delay={0}>
+                                            <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
+                                                <Trophy className="w-8 h-8 text-amber-400 p-1.5 bg-amber-500/10 rounded-lg" />
+                                                <div>
+                                                    <div className="text-lg font-bold text-white mb-0.5">
+                                                        {data.unlockedAchievements.length}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Achievements</div>
                                                 </div>
-                                                <div className="text-[10px] text-gray-500 uppercase font-bold">Achievements</div>
                                             </div>
-                                        </div>
-                                        <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
-                                            <Star className="w-8 h-8 text-emerald-400 p-1.5 bg-emerald-500/10 rounded-lg" />
-                                            <div>
-                                                <div className="text-lg font-bold text-white mb-0.5">
-                                                    {data.profile.difficulty || 'Casual'}
+                                        </Tooltip>
+                                        <Tooltip content="Current training intensity." delay={0}>
+                                            <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
+                                                <Star className="w-8 h-8 text-emerald-400 p-1.5 bg-emerald-500/10 rounded-lg" />
+                                                <div>
+                                                    <div className="text-lg font-bold text-white mb-0.5">
+                                                        {data.profile.difficulty || 'Casual'}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Difficulty</div>
                                                 </div>
-                                                <div className="text-[10px] text-gray-500 uppercase font-bold">Difficulty</div>
                                             </div>
-                                        </div>
+                                        </Tooltip>
                                     </div>
 
                                     {/* Footer */}

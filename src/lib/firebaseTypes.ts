@@ -17,6 +17,7 @@ export interface UserProfileData {
     guildId?: string;
     isPublic?: boolean;
     bio?: string;
+    packageTier?: string;
 }
 
 export interface EquippedItemsData {
@@ -40,6 +41,7 @@ export interface QuestData {
     progress: number;
     target: number;
     rewardXP: number;
+    rewardCoins: number;
     completed: boolean;
     icon: string;
 }
@@ -99,6 +101,13 @@ export interface AetherDocument {
     aiTokens: number;
     maxAiTokens: number;
     lastTokenRefill: number;
+    seenTutorials: string[];
+    widgetStates: Record<string, { minimized: boolean }>;
+    following: string[];
+    followers: string[];
+    friends: string[];
+    pendingFriends: string[];
+    ratings: Record<string, number>;
 }
 
 // ── Trackers Store Document ──

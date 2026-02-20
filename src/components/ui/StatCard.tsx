@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '../../lib/cn';
 import type { LucideIcon } from 'lucide-react';
 import { GlassCard } from './GlassCard';
+import { Tooltip } from './Tooltip';
 
 interface StatCardProps {
     icon: LucideIcon;
@@ -22,8 +23,16 @@ const colors = {
 
 export const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, subLabel, color, children }) => {
     const c = colors[color];
-    return (
-        <GlassCard className={cn('relative overflow-hidden', c.border)}>
+
+    const descriptions: Record<string, string> = {
+        'Aether Integrity': 'Your current life force. Declines with poor nutrition and inactivity. Recovers with healthy habits.',
+        'Zenith Focus': 'Mental energy for alchemy. Used for AI advice and special insights. Regenerates over time.',
+        'Streak': 'Consecutive days of vitality. Higher streaks grant XP and Coin multipliers.',
+        'Total XP': 'Your progression through the Alchemist ranks. Unlock new titles and shop items by leveling up.'
+    };
+
+    const cardContent = (
+        <>
             <div className="flex items-start justify-between mb-3">
                 <div className={cn('p-2.5 rounded-xl', c.bg)}>
                     <Icon className={cn('w-5 h-5', c.icon)} />
@@ -37,6 +46,16 @@ export const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, su
             {children && <div className="mt-4">{children}</div>}
             {/* Subtle background glow */}
             <div className={cn('absolute -top-8 -right-8 w-24 h-24 rounded-full blur-3xl opacity-20', c.bg)} />
+        </>
+    );
+
+    return (
+        <GlassCard className={cn('relative overflow-hidden', c.border)}>
+            {descriptions[label] ? (
+                <Tooltip content={descriptions[label]}>
+                    {cardContent}
+                </Tooltip>
+            ) : cardContent}
         </GlassCard>
     );
 };

@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Heart, Zap, Star, Flame, MessageCircle, Plus, X,
+    Heart, Zap, Star, Flame, MessageCircle, X,
     TrendingUp, Target, UtensilsCrossed, Droplets,
-    Footprints, Candy, Sparkles, Shield, CigaretteOff, Ban
+    Footprints, Candy, Sparkles, Shield, CigaretteOff, Ban, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatCard } from '../components/ui/StatCard';
@@ -25,6 +25,19 @@ import { isAIAvailable } from '../lib/aiProvider';
 import { useToast } from '../context/ToastContext';
 import { useSound } from '../lib/SoundManager';
 import { StreakCalendar } from '../components/trackers/StreakCalendar';
+import { TutorialModal } from '../components/ui/TutorialModal';
+// StatCard and MiniTracker now handle their own tooltips internally
+
+const PREDEFINED_MEALS = [
+    { name: 'Apple', emoji: '🍎', calories: 95, sugar: 19, protein: 0.5, carbs: 25, fat: 0.3 },
+    { name: 'Banana', emoji: '🍌', calories: 105, sugar: 14, protein: 1.3, carbs: 27, fat: 0.4 },
+    { name: 'Chicken Breast (150g)', emoji: '🍗', calories: 250, sugar: 0, protein: 46, carbs: 0, fat: 5 },
+    { name: 'Boiled Egg', emoji: '🥚', calories: 70, sugar: 0.6, protein: 6, carbs: 0.6, fat: 5 },
+    { name: 'Greek Yogurt', emoji: '🥛', calories: 130, sugar: 6, protein: 12, carbs: 9, fat: 4 },
+    { name: 'Salad Bowl', emoji: '🥗', calories: 180, sugar: 4, protein: 5, carbs: 12, fat: 12 },
+    { name: 'Black Coffee', emoji: '☕', calories: 2, sugar: 0, protein: 0.3, carbs: 0, fat: 0 },
+    { name: 'Green Tea', emoji: '🍵', calories: 2, sugar: 0, protein: 0, carbs: 0, fat: 0 },
+];
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
@@ -57,6 +70,14 @@ export const DashboardPage: React.FC = () => {
     const getTodayExercises = useTrackersStore((s) => s.getTodayExercises);
     const habits = useTrackersStore((s) => s.habits);
     const getHabitStreak = useTrackersStore((s) => s.getHabitStreak);
+
+    const seenTutorials = useAetherStore((s) => s.seenTutorials);
+    const markTutorialSeen = useAetherStore((s) => s.markTutorialSeen);
+    const widgetStates = useAetherStore((s) => s.widgetStates);
+    const toggleWidget = useAetherStore((s) => s.toggleWidget);
+    const aiTokens = useAetherStore((s) => s.aiTokens);
+    const spendAIToken = useAetherStore((s) => s.spendAIToken);
+
     const greeting = useGreeting(profile?.name || 'Seeker');
 
     const [showMealModal, setShowMealModal] = useState(false);
@@ -65,10 +86,17 @@ export const DashboardPage: React.FC = () => {
 
     const [aiInsight, setAiInsight] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
+
+    const dashboardSteps = [
+        { title: 'The Heart of Your Journey', content: 'This is your dashboard. Here you can track your life force (HP), focus (Mana), and overall progression.', icon: <Sparkles className="w-4 h-4 text-emerald-400" /> },
+        { title: 'Transmute Habits', content: 'Use the health trackers to log water, steps, and meals. Your HP reacts to every choice you make.', icon: <TrendingUp className="w-4 h-4 text-cyan-400" /> },
+        { title: 'Consult the Alchemist', content: 'The Alchemist offers wisdom based on your unique data. Ask questions or get daily insights.', icon: <MessageCircle className="w-4 h-4 text-purple-400" /> }
+    ];
 
     const xpProgress = useMemo(() => getXPProgress(xp, level), [xp, level]);
     const xpNeeded = useMemo(() => getXPForNextLevel(level), [level]);
-    const activeQuests = useMemo(() => quests.filter((q) => !q.completed).slice(0, 3), [quests]);
+    const activeQuests = useMemo(() => quests.filter((q: any) => !q.completed).slice(0, 3), [quests]);
 
     const todayWater = useMemo(() => getTodayWater(), [getTodayWater]);
     const todaySteps = useMemo(() => getTodaySteps(), [getTodaySteps]);
@@ -82,8 +110,12 @@ export const DashboardPage: React.FC = () => {
     useEffect(() => {
         generateDailyQuests();
         updateStreak();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+
+        // Trigger tutorial if first time
+        if (!seenTutorials.includes('dashboard')) {
+            setTimeout(() => setShowTutorial(true), 1000);
+        }
+    }, [generateDailyQuests, updateStreak, seenTutorials]);
 
     // Fetch AI daily insight
     useEffect(() => {
@@ -116,8 +148,25 @@ export const DashboardPage: React.FC = () => {
     const { addToast } = useToast();
     const { play } = useSound();
 
+    const currentStreakMultiplier = useMemo(() => {
+        if (streak >= 90) return 2.0;
+        if (streak >= 60) return 1.75;
+        if (streak >= 30) return 1.5;
+        if (streak >= 7) return 1.25;
+        if (streak >= 3) return 1.1;
+        return 1.0;
+    }, [streak]);
+
     const handleLogMeal = useCallback(async () => {
         if (!mealInput.trim()) return;
+
+        // Check tokens
+        if (aiTokens < 1) {
+            addToast('Exhausted of Essence. Visit the Treasury or wait for refill.', 'error');
+            navigate('/treasury');
+            return;
+        }
+
         play('click');
         setIsLogging(true);
         setValidationError(null);
@@ -211,8 +260,11 @@ export const DashboardPage: React.FC = () => {
                 compositeAdvice
             );
 
+            // Deduct AI Token
+            spendAIToken(1);
+
             // Update quest progress for meal logging
-            quests.forEach((q) => {
+            quests.forEach((q: any) => {
                 if (q.title === 'Substance Analysis' && !q.completed) {
                     updateQuestProgress(q.id, q.progress + successCount);
                 }
@@ -232,7 +284,28 @@ export const DashboardPage: React.FC = () => {
             play('error');
         }
         setIsLogging(false);
-    }, [mealInput, profile, hp, quests, logMeal, updateQuestProgress, addFood, addToast, play]);
+    }, [mealInput, aiTokens, navigate, addToast, play, spendAIToken, profile, hp, quests, logMeal, updateQuestProgress, addFood]);
+
+    const handleQuickLog = useCallback((food: typeof PREDEFINED_MEALS[0]) => {
+        play('success');
+        addFood({
+            foodId: `quick_${Date.now()}`,
+            name: food.name,
+            emoji: food.emoji,
+            calories: food.calories,
+            sugar: food.sugar,
+            protein: food.protein,
+            carbs: food.carbs,
+            fat: food.fat,
+            servings: 1,
+        });
+
+        const hpImpact = calculateHealthImpact(85).hpImpact; // Standard healthy impact for quick logs
+        logMeal(food.name, hpImpact, `Nourished with ${food.name}. A wise choice, Seeker.`);
+
+        addToast(`${food.name} logged manually (No Essence spent).`, 'success');
+        setShowMealModal(false);
+    }, [play, addFood, logMeal, addToast]);
 
     return (
         <PageTransition className="space-y-6">
@@ -257,6 +330,16 @@ export const DashboardPage: React.FC = () => {
                 </div>
             </div>
 
+            <TutorialModal
+                isOpen={showTutorial}
+                onClose={() => {
+                    setShowTutorial(false);
+                    markTutorialSeen('dashboard');
+                }}
+                steps={dashboardSteps}
+                pageTitle="Sanctum of Vitality"
+            />
+
             {/* Stat Cards Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <StatCard icon={Heart} label="Aether Integrity" value={hp} color="rose" subLabel="HP">
@@ -266,13 +349,18 @@ export const DashboardPage: React.FC = () => {
                     <ProgressBar value={mana} variant="cyan" size="sm" />
                 </StatCard>
                 <StatCard icon={Flame} label="Streak" value={streak} color="gold" subLabel={`${streak} days`}>
-                    <div className="flex gap-0.5 mt-1">
-                        {[...Array(7)].map((_, i) => {
-                            const activeDots = streak === 0 ? 0 : (streak % 7 || 7);
-                            return (
-                                <div key={i} className={`h-1.5 w-full rounded-full ${i < activeDots ? 'bg-amber-400' : 'bg-white/[0.04]'}`} />
-                            );
-                        })}
+                    <div className="flex items-center justify-between mt-1">
+                        <div className="flex gap-0.5">
+                            {[...Array(7)].map((_, i) => {
+                                const activeDots = streak === 0 ? 0 : (streak % 7 || 7);
+                                return (
+                                    <div key={i} className={`h-1.5 w-full rounded-full ${i < activeDots ? 'bg-amber-400' : 'bg-white/[0.04]'}`} />
+                                );
+                            })}
+                        </div>
+                        {currentStreakMultiplier > 1 && (
+                            <span className="text-[10px] font-black text-amber-500 ml-2">x{currentStreakMultiplier} XP</span>
+                        )}
                     </div>
                 </StatCard>
                 <StatCard icon={Star} label="Total XP" value={xp} color="emerald" subLabel={`Lv.${level}`}>
@@ -286,40 +374,56 @@ export const DashboardPage: React.FC = () => {
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-emerald-400" /> Health Trackers
                     </h3>
-                    <button onClick={() => navigate('/trackers')} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer">
-                        View All →
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => navigate('/trackers')} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer">
+                            View All →
+                        </button>
+                        <button onClick={() => toggleWidget('healthTrackers')} className="p-1 glass-subtle hover:text-white transition-colors">
+                            {widgetStates['healthTrackers']?.minimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        </button>
+                    </div>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <MiniTracker
-                        icon={Droplets}
-                        label="Water"
-                        value={`${todayWater.glasses} glasses`}
-                        progress={(todayWater.glasses / todayWater.target) * 100}
-                        color="#06b6d4"
-                    />
-                    <MiniTracker
-                        icon={Footprints}
-                        label="Steps"
-                        value={`${todaySteps.steps} steps`}
-                        progress={(todaySteps.steps / todaySteps.target) * 100}
-                        color="#10b981"
-                    />
-                    <MiniTracker
-                        icon={Flame}
-                        label="Calories"
-                        value={`${todayCalories.consumed} kcal`}
-                        progress={(todayCalories.consumed / todayCalories.target) * 100}
-                        color="#f59e0b"
-                    />
-                    <MiniTracker
-                        icon={Candy}
-                        label="Sugar"
-                        value={`${todaySugar.grams}g`}
-                        progress={(todaySugar.grams / todaySugar.target) * 100}
-                        color="#f43f5e"
-                    />
-                </div>
+                <AnimatePresence>
+                    {!widgetStates['healthTrackers']?.minimized && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                <MiniTracker
+                                    icon={Droplets}
+                                    label="Water"
+                                    value={`${todayWater.glasses} glasses`}
+                                    progress={(todayWater.glasses / todayWater.target) * 100}
+                                    color="#06b6d4"
+                                />
+                                <MiniTracker
+                                    icon={Footprints}
+                                    label="Steps"
+                                    value={`${todaySteps.steps} steps`}
+                                    progress={(todaySteps.steps / todaySteps.target) * 100}
+                                    color="#10b981"
+                                />
+                                <MiniTracker
+                                    icon={Flame}
+                                    label="Calories"
+                                    value={`${todayCalories.consumed} kcal`}
+                                    progress={(todayCalories.consumed / todayCalories.target) * 100}
+                                    color="#f59e0b"
+                                />
+                                <MiniTracker
+                                    icon={Candy}
+                                    label="Sugar"
+                                    value={`${todaySugar.grams}g`}
+                                    progress={(todaySugar.grams / todaySugar.target) * 100}
+                                    color="#f43f5e"
+                                />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Active Journeys (Habits) Mini-Widget */}
@@ -329,31 +433,45 @@ export const DashboardPage: React.FC = () => {
                         <h3 className="text-sm font-bold text-white flex items-center gap-2">
                             <Shield className="w-4 h-4 text-emerald-400" /> Active Journeys
                         </h3>
+                        <button onClick={() => toggleWidget('activeJourneys')} className="p-1 glass-subtle hover:text-white transition-colors">
+                            {widgetStates['activeJourneys']?.minimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        {habits.slice(0, 2).map(habit => {
-                            const streak = getHabitStreak(habit.id);
-                            return (
-                                <GlassCard
-                                    key={habit.id}
-                                    className="p-3 cursor-pointer hover:bg-white/[0.05] transition-colors"
-                                    onClick={() => navigate('/trackers')}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                                            {habit.type === 'smoking' && <CigaretteOff className="w-4 h-4 text-emerald-400" />}
-                                            {habit.type === 'nofap' && <Ban className="w-4 h-4 text-cyan-400" />}
-                                            {habit.type === 'custom' && <Shield className="w-4 h-4 text-gray-400" />}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] font-bold text-white truncate">{habit.name}</p>
-                                            <p className="text-[10px] text-emerald-400 font-mono">{streak.days}d {streak.hours}h</p>
-                                        </div>
-                                    </div>
-                                </GlassCard>
-                            );
-                        })}
-                    </div>
+                    <AnimatePresence>
+                        {!widgetStates['activeJourneys']?.minimized && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="grid grid-cols-2 gap-3">
+                                    {habits.slice(0, 2).map(habit => {
+                                        const streak = getHabitStreak(habit.id);
+                                        return (
+                                            <GlassCard
+                                                key={habit.id}
+                                                className="p-3 cursor-pointer hover:bg-white/[0.05] transition-colors"
+                                                onClick={() => navigate('/trackers')}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                                                        {habit.type === 'smoking' && <CigaretteOff className="w-4 h-4 text-emerald-400" />}
+                                                        {habit.type === 'nofap' && <Ban className="w-4 h-4 text-cyan-400" />}
+                                                        {habit.type === 'custom' && <Shield className="w-4 h-4 text-gray-400" />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-bold text-white truncate">{habit.name}</p>
+                                                        <p className="text-[10px] text-emerald-400 font-mono">{streak.days}d {streak.hours}h</p>
+                                                    </div>
+                                                </div>
+                                            </GlassCard>
+                                        );
+                                    })}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             )}
 
@@ -397,44 +515,70 @@ export const DashboardPage: React.FC = () => {
                             <TrendingUp className="w-4 h-4 text-emerald-400" />
                             <h3 className="text-sm font-bold text-white">Integrity Trend</h3>
                         </div>
-                        <span className="text-xs text-gray-600">Last 7 entries</span>
-                    </div>
-                    {hpHistory.length > 1 ? (
-                        <ResponsiveContainer width="100%" height={160}>
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="hpGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#525252' }} axisLine={false} tickLine={false} />
-                                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#525252' }} axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }}
-                                    labelStyle={{ color: '#9ca3af' }}
-                                />
-                                <Area type="monotone" dataKey="hp" stroke="#10b981" fill="url(#hpGradient)" strokeWidth={2} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="flex items-center justify-center h-[160px] text-gray-600 text-sm">
-                            Log meals to see your trend chart appear here
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-600">Last 7 entries</span>
+                            <button onClick={() => toggleWidget('integrityTrend')} className="p-1 glass-subtle hover:text-white transition-colors">
+                                {widgetStates['integrityTrend']?.minimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                            </button>
                         </div>
-                    )}
+                    </div>
+                    <AnimatePresence>
+                        {!widgetStates['integrityTrend']?.minimized && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                {hpHistory.length > 1 ? (
+                                    <ResponsiveContainer width="100%" height={160}>
+                                        <AreaChart data={chartData}>
+                                            <defs>
+                                                <linearGradient id="hpGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#525252' }} axisLine={false} tickLine={false} />
+                                            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#525252' }} axisLine={false} tickLine={false} />
+                                            <RechartsTooltip
+                                                contentStyle={{ background: '#111318', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 12 }}
+                                                labelStyle={{ color: '#9ca3af' }}
+                                            />
+                                            <Area type="monotone" dataKey="hp" stroke="#10b981" fill="url(#hpGradient)" strokeWidth={2} />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[160px] text-gray-600 text-sm">
+                                        Log meals to see your trend chart appear here
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </GlassCard>
             </div>
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button onClick={() => setShowMealModal(true)} className="btn-primary flex items-center justify-center gap-3 py-4 text-sm">
-                    <UtensilsCrossed className="w-5 h-5" /> Log Meal
+                <button onClick={() => setShowMealModal(true)} className="btn-primary flex flex-col items-center justify-center py-4 text-sm gap-1">
+                    <div className="flex items-center gap-3">
+                        <UtensilsCrossed className="w-5 h-5" /> Log Meal
+                    </div>
+                    <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                        FREE QUICK LOG / 1 ESSENCE AI
+                    </span>
                 </button>
-                <button onClick={() => navigate('/chat')} className="btn-secondary flex items-center justify-center gap-3 py-4 text-sm">
-                    <MessageCircle className="w-5 h-5" /> Ask Alchemist
+                <button onClick={() => navigate('/chat')} className="btn-secondary flex flex-col items-center justify-center py-4 text-sm gap-1">
+                    <div className="flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5" /> Ask Alchemist
+                    </div>
+                    <span className="text-[10px] text-emerald-400/50 font-bold uppercase tracking-widest flex items-center gap-1">
+                        -1 Essence <Sparkles className="w-3 h-3" />
+                    </span>
                 </button>
                 <button onClick={() => {
-                    const q = quests.find(q => !q.completed);
+                    const q = quests.find((q: any) => !q.completed);
                     if (q) updateQuestProgress(q.id, q.progress + 1);
                 }} className="btn-secondary flex items-center justify-center gap-3 py-4 text-sm">
                     <Target className="w-5 h-5" /> Quick Progress
@@ -447,43 +591,75 @@ export const DashboardPage: React.FC = () => {
             {/* Active Quests */}
             {activeQuests.length > 0 && (
                 <GlassCard>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Target className="w-4 h-4 text-cyan-400" />
-                        <h3 className="text-sm font-bold text-white">Active Quests</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <Target className="w-4 h-4 text-cyan-400" />
+                            <h3 className="text-sm font-bold text-white">Active Quests</h3>
+                        </div>
+                        <button onClick={() => toggleWidget('activeQuests')} className="p-1 glass-subtle hover:text-white transition-colors">
+                            {widgetStates['activeQuests']?.minimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        </button>
                     </div>
-                    <div className="space-y-2">
-                        {activeQuests.map((quest) => (
-                            <QuestCard
-                                key={quest.id}
-                                quest={quest}
-                                onComplete={() => completeQuest(quest.id)}
-                            />
-                        ))}
-                    </div>
+                    <AnimatePresence>
+                        {!widgetStates['activeQuests']?.minimized && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="space-y-2">
+                                    {activeQuests.map((quest: any) => (
+                                        <QuestCard
+                                            key={quest.id}
+                                            quest={quest}
+                                            onComplete={() => completeQuest(quest.id)}
+                                        />
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </GlassCard>
             )}
 
             {/* Recent Activity */}
             {mealHistory.length > 0 && (
                 <GlassCard>
-                    <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                        <UtensilsCrossed className="w-4 h-4 text-rose-400" /> Recent Meals
-                    </h3>
-                    <div className="space-y-2">
-                        {recentMeals.map((log) => (
-                            <div key={log.id} className="glass-subtle p-3 flex items-center justify-between">
-                                <div>
-                                    <span className="text-sm font-medium text-white">{log.meal}</span>
-                                    <span className="text-xs text-gray-600 ml-2">
-                                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
-                                <span className={`text-xs font-bold ${log.hpImpact >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                    {log.hpImpact >= 0 ? '+' : ''}{log.hpImpact} HP
-                                </span>
-                            </div>
-                        ))}
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                            <UtensilsCrossed className="w-4 h-4 text-rose-400" /> Recent Meals
+                        </h3>
+                        <button onClick={() => toggleWidget('recentMeals')} className="p-1 glass-subtle hover:text-white transition-colors">
+                            {widgetStates['recentMeals']?.minimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        </button>
                     </div>
+                    <AnimatePresence>
+                        {!widgetStates['recentMeals']?.minimized && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="space-y-2">
+                                    {recentMeals.map((log: any) => (
+                                        <div key={log.id} className="glass-subtle p-3 flex items-center justify-between">
+                                            <div>
+                                                <span className="text-sm font-medium text-white">{log.meal}</span>
+                                                <span className="text-xs text-gray-600 ml-2">
+                                                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <span className={`text-xs font-bold ${log.hpImpact >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {log.hpImpact >= 0 ? '+' : ''}{log.hpImpact} HP
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </GlassCard>
             )}
 
@@ -521,9 +697,27 @@ export const DashboardPage: React.FC = () => {
                                     if (validationError) setValidationError(null);
                                 }}
                                 placeholder="e.g.&#10;Grilled salmon with broccoli&#10;2 cups of black coffee&#10;1 banana"
-                                className={`input-field min-h-[120px] resize-none mb-4 ${validationError ? 'border-rose-500/50 bg-rose-500/5' : ''}`}
                                 autoFocus
                             />
+
+                            {/* Quick Log Options */}
+                            <div className="mb-6">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
+                                    Quick Log (Free)
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1 no-scrollbar">
+                                    {PREDEFINED_MEALS.map((food) => (
+                                        <button
+                                            key={food.name}
+                                            onClick={() => handleQuickLog(food)}
+                                            className="glass-subtle hover:bg-white/10 p-2 rounded-xl text-left flex items-center gap-2 transition-all group"
+                                        >
+                                            <span className="text-sm group-hover:scale-110 transition-transform">{food.emoji}</span>
+                                            <span className="text-[10px] font-bold text-gray-300 truncate">{food.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
                             {validationError && (
                                 <motion.div
@@ -549,10 +743,18 @@ export const DashboardPage: React.FC = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <Plus className="w-4 h-4" /> Log & Analyze
+                                            <Sparkles className="w-4 h-4" /> Log & AI Analyze
                                         </>
                                     )}
                                 </button>
+                            </div>
+                            <div className="mt-4 flex items-center justify-center gap-2">
+                                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">
+                                    Available Essence:
+                                </p>
+                                <div className="flex items-center gap-1 text-[10px] font-black text-emerald-400">
+                                    {aiTokens} / 50 <Sparkles className="w-3 h-3 saturate-0 opacity-50" />
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Star, User } from 'lucide-react';
+import { Trophy, Medal, Star, User, UserPlus, Heart } from 'lucide-react';
 import { collection, query, orderBy, limit, getDocs, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { PageTransition } from '../components/layout/PageTransition';
@@ -146,14 +146,44 @@ export const LeaderboardPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Stats */}
-                                    <div className="text-right flex-shrink-0">
-                                        <div className="text-sm font-black text-white flex items-center gap-1 justify-end">
-                                            <Star className="w-3.5 h-3.5 text-amber-400" /> {user.level}
+                                    {/* Stats & Actions */}
+                                    <div className="flex items-center gap-4 flex-shrink-0">
+                                        <div className="text-right">
+                                            <div className="text-sm font-black text-white flex items-center gap-1 justify-end">
+                                                <Star className="w-3.5 h-3.5 text-amber-400" /> {user.level}
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                                {user.xp.toLocaleString()} XP
+                                            </div>
                                         </div>
-                                        <div className="text-[10px] text-gray-500 font-mono mt-0.5">
-                                            {user.xp.toLocaleString()} XP
-                                        </div>
+
+                                        {!isMe && (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        useAetherStore.getState().sendFriendRequest(user.uid);
+                                                        // Simple feedback
+                                                        alert(`Friend request sent to ${user.name || 'Seeker'}!`);
+                                                    }}
+                                                    className="w-10 h-10 rounded-xl glass-subtle flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                                                    title="Add Friend"
+                                                >
+                                                    <UserPlus className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        useAetherStore.getState().rateUser(user.uid, 5);
+                                                        alert(`You rated ${user.name || 'Seeker'}!`);
+                                                    }}
+                                                    className="w-10 h-10 rounded-xl glass-subtle flex items-center justify-center text-rose-400 hover:bg-rose-500/20 transition-all border border-rose-500/20"
+                                                    title="Rate Seeker"
+                                                >
+                                                    <Heart className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             );
