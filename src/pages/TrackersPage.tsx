@@ -73,8 +73,33 @@ export const TrackersPage: React.FC = () => {
 // ─── WATER TRACKER ───────────────────────────────────────────
 const WaterTracker: React.FC = () => {
     const store = useTrackersStore();
+    const unit = store.waterUnit || 'cups';
     const today = store.getTodayWater();
     const progress = Math.min(100, (today.glasses / today.target) * 100);
+
+    const getUnitMultiplier = () => {
+        if (unit === 'ml') return 250;
+        if (unit === 'bottles') return 0.5;
+        return 1;
+    };
+
+    const formatValue = (val: number) => {
+        const mult = getUnitMultiplier();
+        const result = val * mult;
+        return unit === 'bottles' ? result.toFixed(1).replace(/\.0$/, '') : result.toString();
+    };
+
+    const getQuickAddValues = () => {
+        if (unit === 'ml') return [250, 500, 750];
+        if (unit === 'bottles') return [0.5, 1, 1.5];
+        return [1, 2, 3];
+    };
+
+    const getGlassesFromValue = (displayVal: number) => {
+        if (unit === 'ml') return displayVal / 250;
+        if (unit === 'bottles') return displayVal / 0.5;
+        return displayVal;
+    };
 
     // Generate current week data (Monday - Sunday)
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -93,13 +118,27 @@ const WaterTracker: React.FC = () => {
     return (
         <div className="space-y-4">
             <GlassCard className="flex flex-col items-center py-8" glow="cyan">
+                {/* Unit Selector */}
+                <div className="flex gap-2 mb-6 bg-white/5 p-1 rounded-xl glass-subtle">
+                    {(['ml', 'cups', 'bottles'] as const).map(u => (
+                        <button
+                            key={u}
+                            onClick={() => store.setWaterUnit(u)}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${unit === u ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                                }`}
+                        >
+                            {u}
+                        </button>
+                    ))}
+                </div>
+
                 <CircularProgress
                     value={progress}
                     size={160}
                     strokeWidth={10}
                     color="#06b6d4"
-                    label={`${today.glasses}`}
-                    sublabel={`of ${today.target} glasses`}
+                    label={`${formatValue(today.glasses)}${unit === 'ml' ? 'ml' : ''}`}
+                    sublabel={`of ${formatValue(today.target)} ${unit}`}
                     icon={<Droplets className="w-5 h-5 text-cyan-400" />}
                 />
                 <div className="flex items-center gap-3 mt-6">
@@ -107,31 +146,20 @@ const WaterTracker: React.FC = () => {
                         whileTap={{ scale: 0.9 }}
                         onClick={() => store.removeWater(1)}
                         className="btn-ghost p-3 text-cyan-400 hover:bg-cyan-400/10 rounded-xl"
-                        title="Remove glass"
+                        title="Remove"
                     >
                         <Minus className="w-5 h-5" />
                     </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => store.addWater(1)}
-                        className="btn-primary px-6 flex items-center gap-2"
-                    >
-                        <Plus className="w-4 h-4" /> Add Glass
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => store.addWater(2)}
-                        className="btn-secondary px-4"
-                    >
-                        +2
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => store.addWater(3)}
-                        className="btn-secondary px-4"
-                    >
-                        +3
-                    </motion.button>
+                    {getQuickAddValues().map((v, i) => (
+                        <motion.button
+                            key={v}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => store.addWater(getGlassesFromValue(v))}
+                            className={`px-4 py-2 ${i === 0 ? 'btn-primary flex items-center gap-2 px-6' : 'btn-secondary'}`}
+                        >
+                            {i === 0 && <Plus className="w-4 h-4" />} +{v} {unit === 'ml' && i === 0 ? 'ml' : ''}
+                        </motion.button>
+                    ))}
                 </div>
                 {progress >= 100 && (
                     <motion.p
@@ -167,7 +195,7 @@ const WaterTracker: React.FC = () => {
                                     {day.dayName.charAt(0)}
                                 </span>
                                 <span className={`text-[10px] ${isToday ? 'text-white font-bold' : 'text-gray-600'}`}>
-                                    {day.glasses}
+                                    {formatValue(day.glasses)}
                                 </span>
                             </div>
                         );

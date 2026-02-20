@@ -121,6 +121,8 @@ interface TrackersState {
     setBodyProfile: (profile: BodyProfile) => void;
 
     // Water
+    waterUnit?: 'ml' | 'cups' | 'bottles';
+    setWaterUnit: (unit: 'ml' | 'cups' | 'bottles') => void;
     waterLogs: DailyWaterLog[];
     addWater: (glasses?: number) => void;
     setWaterTarget: (target: number) => void;
@@ -222,7 +224,7 @@ const DEFAULT_UNLOCKABLES: UnlockableItem[] = [
 
 // Keys to persist to Firestore
 const DATA_KEYS = [
-    'bodyProfile', 'waterLogs', 'stepsLogs', 'sugarLogs', 'calorieLogs',
+    'bodyProfile', 'waterUnit', 'waterLogs', 'stepsLogs', 'sugarLogs', 'calorieLogs',
     'weightLog', 'exerciseLogs', 'habits', 'habitRelapses', 'sleepLogs', 'fasting', 'unlockables',
 ] as const;
 
@@ -240,6 +242,7 @@ function autoSave(get: () => TrackersState) {
 export const useTrackersStore = create<TrackersState>()((set, get) => ({
     _uid: null,
     bodyProfile: null,
+    waterUnit: 'cups',
     waterLogs: [],
     stepsLogs: [],
     sugarLogs: [],
@@ -310,6 +313,7 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
     },
 
     // Water
+    setWaterUnit: (unit) => { set({ waterUnit: unit }); autoSave(get); },
     addWater: (glasses = 1) => {
         const d = today();
         const logs = [...get().waterLogs];
