@@ -5,7 +5,7 @@ import type { FoodItem } from './foodDatabase';
 const FOODS_COLLECTION = 'foods';
 
 // Normalize ID for consistent lookups (e.g. "Green Apple" -> "green_apple")
-export const normalizeId = (name: string) => name.toLowerCase().trim().replace(/\s+/g, '_');
+export const normalizeId = (name: string) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
 /**
  * Add a food item to the global Firestore database.

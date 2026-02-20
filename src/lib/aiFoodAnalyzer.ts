@@ -109,6 +109,7 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
     The meal description may be in Turkish or English. Translate food names to English for the "name" field if they are in Turkish, but keep the original Turkish name in parentheses if it helps clarity.
     
     For each item, provide nutritional analysis per the portion described.
+    IMPORTANT: All numerical values (calories, sugar, protein, carbs, fat, fiber) MUST be numbers, NOT strings. Do not include units like "g" or "kcal" in the number fields. If a value is unknown, use 0. Ensure the totalCalories matches the sum of the items.
     
     Meal: "${description}"
     
@@ -128,36 +129,52 @@ export async function analyzeMeal(description: string): Promise<MealAnalysis | n
 
     const result = await aiGenerateJSON<MealAnalysis>({ prompt, temperature: 0.2 });
 
-    if (result && result.items) {
-        // Cache each individual food item
-        for (const item of result.items) {
-            if (item.calories > 0 && !lookupFood(item.name)) {
-                cacheAIFood({
-                    name: item.name,
-                    calories: item.calories,
-                    sugar: item.sugar ?? 0,
-                    protein: item.protein ?? 0,
-                    carbs: item.carbs ?? 0,
-                    fat: item.fat ?? 0,
-                    fiber: item.fiber ?? 0,
-                    servingSize: item.servingSize ?? '1 serving',
-                });
+    if (result) {
+        // Cache each individual food item if present
+        if (result.items && Array.isArray(result.items)) {
+            for (const item of result.items) {
+                const calories = Number(item.calories) || 0;
+                if (calories > 0 && !lookupFood(item.name)) {
+                    cacheAIFood({
+                        name: item.name,
+                        calories: calories,
+                        sugar: Number(item.sugar) || 0,
+                        protein: Number(item.protein) || 0,
+                        carbs: Number(item.carbs) || 0,
+                        fat: Number(item.fat) || 0,
+                        fiber: Number(item.fiber) || 0,
+                        servingSize: item.servingSize ?? '1 serving',
+                    });
 
-                // Save to global Firestore DB
-                addFoodToGlobalDB({
-                    id: item.name.toLowerCase().replace(/\s+/g, '_'),
-                    name: item.name,
-                    emoji: item.emoji || '🍽️',
-                    calories: item.calories,
-                    sugar: item.sugar ?? 0,
-                    protein: item.protein ?? 0,
-                    carbs: item.carbs ?? 0,
-                    fat: item.fat ?? 0,
-                    servingSize: item.servingSize ?? '1 serving',
-                    category: (item.category as any) || 'meal',
-                });
+                    // Save to global Firestore DB
+                    const safeId = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                    const safeCategory = ['fruit', 'vegetable', 'protein', 'grain', 'dairy', 'snack', 'drink', 'fast-food', 'meal'].includes(item.category || '') ? item.category : 'meal';
+
+                    if (safeId) {
+                        addFoodToGlobalDB({
+                            id: safeId,
+                            name: item.name,
+                            emoji: item.emoji || '🍽️',
+                            calories: calories,
+                            sugar: Number(item.sugar) || 0,
+                            protein: Number(item.protein) || 0,
+                            carbs: Number(item.carbs) || 0,
+                            fat: Number(item.fat) || 0,
+                            servingSize: item.servingSize ?? '1 serving',
+                            category: safeCategory as any,
+                        });
+                    }
+                }
             }
         }
+
+        // Ensure total attributes are numbers
+        result.totalCalories = Number(result.totalCalories) || 0;
+        result.totalSugar = Number(result.totalSugar) || 0;
+        result.totalProtein = Number(result.totalProtein) || 0;
+        result.totalCarbs = Number(result.totalCarbs) || 0;
+        result.totalFat = Number(result.totalFat) || 0;
+        result.healthScore = Number(result.healthScore) || 5;
 
         return result;
     }

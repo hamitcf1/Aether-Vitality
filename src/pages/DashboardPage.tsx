@@ -146,7 +146,10 @@ export const DashboardPage: React.FC = () => {
             let hpImpact: number;
             let advice: string;
 
+            let wasNutritionTracked = false;
+
             if (mealAnalysis) {
+                wasNutritionTracked = true;
                 const impact = calculateHealthImpact(mealAnalysis.healthScore);
                 hpImpact = impact.hpImpact;
                 advice = mealAnalysis.advice;
@@ -155,7 +158,7 @@ export const DashboardPage: React.FC = () => {
                 if (mealAnalysis.items && mealAnalysis.items.length > 0) {
                     mealAnalysis.items.forEach(item => {
                         addFood({
-                            foodId: `meal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            foodId: `meal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
                             name: item.name,
                             emoji: item.emoji || '🍽️',
                             calories: item.calories, // AI returns calories per unit/serving
@@ -197,7 +200,11 @@ export const DashboardPage: React.FC = () => {
                 }
             });
 
-            addToast('Sustenance recorded successfully.', 'success');
+            if (wasNutritionTracked) {
+                addToast('Sustenance recorded and nutrition analyzed.', 'success');
+            } else {
+                addToast('Sustenance recorded, but nutrition analysis failed.', 'error');
+            }
             play('success');
 
             setMealInput('');
