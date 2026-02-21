@@ -13,6 +13,13 @@ export interface FoodItem {
     category: 'fruit' | 'vegetable' | 'protein' | 'grain' | 'dairy' | 'snack' | 'drink' | 'fast-food' | 'meal';
 }
 
+export const PORTIONS = [
+    { label: 'Small', multiplier: 0.7, description: '70% of standard' },
+    { label: 'Standard', multiplier: 1, description: '1.0x serving' },
+    { label: 'Large', multiplier: 1.5, description: '1.5x serving' },
+    { label: 'Extra Large', multiplier: 2, description: '2.0x serving' },
+];
+
 export const FOOD_DATABASE: FoodItem[] = [
     // Fruits
     { id: 'apple', name: 'Apple', emoji: '🍎', calories: 95, sugar: 19, protein: 0.5, carbs: 25, fat: 0.3, servingSize: '1 medium', category: 'fruit' },

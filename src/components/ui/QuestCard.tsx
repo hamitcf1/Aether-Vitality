@@ -1,14 +1,16 @@
-import { CheckCircle2, Coins, Sparkles } from 'lucide-react';
+import { CheckCircle2, Coins, Sparkles, RefreshCw } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ProgressBar } from './ProgressBar';
-import type { QuestData as Quest } from '../../lib/firebaseTypes';
+import type { Quest } from '../../types/aether';
 
 interface QuestCardProps {
     quest: Quest;
     onComplete?: () => void;
+    onReroll?: () => void;
+    canReroll?: boolean;
 }
 
-export const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete }) => (
+export const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onReroll, canReroll }) => (
     <div className={cn(
         'glass-subtle p-4 flex items-center gap-4 transition-all duration-200',
         quest.completed && 'opacity-50'
@@ -18,6 +20,18 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete }) => (
             <div className="flex items-center gap-2">
                 <h4 className="text-sm font-bold text-white truncate">{quest.title}</h4>
                 {quest.completed && <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                {!quest.completed && canReroll && onReroll && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onReroll();
+                        }}
+                        className="p-1 text-gray-400 hover:text-white transition-colors"
+                        title="Reroll Quest (Once per day)"
+                    >
+                        <RefreshCw className="w-3 h-3" />
+                    </button>
+                )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">{quest.description}</p>
             {!quest.completed && (

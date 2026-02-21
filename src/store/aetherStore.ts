@@ -37,7 +37,7 @@ const DAILY_QUESTS_POOL = [
 const DATA_KEYS = [
     'profile', 'onboardingComplete', 'hp', 'mana', 'xp', 'level', 'streak',
     'lastActiveDate', 'mealsLogged', 'questsCompleted', 'daysActive',
-    'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
+    'unlockedAchievements', 'quests', 'rerolledQuests', 'lastRerollDate', 'journal', 'chatHistory', 'mealHistory',
     'hpHistory', 'coins', 'inventory', 'equipped', 'activeBoosts',
     'aiTokens', 'maxAiTokens', 'lastTokenRefill', 'seenTutorials', 'widgetStates',
     'collapsedNavGroups', 'following', 'followers', 'friends', 'pendingFriends', 'ratings'
@@ -84,6 +84,8 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     daysActive: 0,
     unlockedAchievements: [],
     quests: [],
+    rerolledQuests: [],
+    lastRerollDate: '',
     journal: [],
     chatHistory: [],
     mealHistory: [],
@@ -233,12 +235,48 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         get().addXP(quest.rewardXP);
         if (quest.rewardCoins) get().addCoins(quest.rewardCoins);
     },
+    rerollQuest: (questId: string) => {
+        const state = get();
+        const quest = state.quests.find(q => q.id === questId);
+        if (!quest || quest.type !== 'daily' || quest.completed) return;
+
+        const today = format(new Date(), 'yyyy-MM-dd');
+        // Reset if new day
+        const rerolledToday = state.lastRerollDate === today ? state.rerolledQuests : [];
+
+        if (rerolledToday.includes(quest.title)) return;
+
+        // Pick new quest from pool that isn't already active
+        const pool = DAILY_QUESTS_POOL.filter(p => !state.quests.some(eq => eq.title === p.title));
+        if (pool.length === 0) return;
+
+        const newQuestTemplate = pool[Math.floor(Math.random() * pool.length)];
+        const newQuest = {
+            ...newQuestTemplate,
+            type: newQuestTemplate.type as 'daily' | 'special' | 'achievement',
+            id: `${today}-${uid()}`,
+            progress: 0,
+            completed: false
+        };
+
+        set(s => ({
+            quests: s.quests.map(q => q.id === questId ? newQuest : q),
+            rerolledQuests: [...rerolledToday, newQuest.title],
+            lastRerollDate: today
+        }));
+        autoSave(get);
+    },
     generateDailyQuests: () => {
         const state = get() as any;
         const today = format(new Date(), 'yyyy-MM-dd');
 
         // Filter out completed daily quests from OTHER days
         const existingDailyForToday = state.quests.filter((q: any) => q.type === 'daily' && q.id.startsWith(today));
+
+        // If it's a new day, clear rerolled list
+        if (state.lastRerollDate !== today) {
+            set({ rerolledQuests: [], lastRerollDate: today });
+        }
 
         if (existingDailyForToday.length >= 3) return;
 

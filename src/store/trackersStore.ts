@@ -139,7 +139,7 @@ interface TrackersState {
 
     // Calories
     calorieLogs: DailyCalorieLog[];
-    addFood: (food: { foodId: string; name: string; emoji: string; calories: number; sugar: number; protein?: number; carbs?: number; fat?: number; servings: number }) => void;
+    addFood: (food: { foodId: string; name: string; emoji: string; calories: number; sugar: number; protein?: number; carbs?: number; fat?: number; servings: number }, multiplier?: number) => void;
     setCalorieTarget: (target: number) => void;
 
     // Weight
@@ -476,24 +476,35 @@ export const useTrackersStore = create<TrackersState>()((set, get) => ({
     },
 
     // Calories
-    addFood: (food) => {
+    addFood: (food, multiplier = 1) => {
         const d = today();
         const logs = [...get().calorieLogs];
         const idx = logs.findIndex((l) => l.date === d);
-        const entry = { ...food, time: Date.now() };
+
+        // Scale nutrition by portion multiplier
+        const scaledFood = {
+            ...food,
+            calories: Math.round(food.calories * multiplier),
+            sugar: food.sugar * multiplier,
+            protein: food.protein ? food.protein * multiplier : undefined,
+            carbs: food.carbs ? food.carbs * multiplier : undefined,
+            fat: food.fat ? food.fat * multiplier : undefined,
+        };
+
+        const entry = { ...scaledFood, time: Date.now() };
         if (idx >= 0) {
             logs[idx] = {
                 ...logs[idx],
-                consumed: logs[idx].consumed + food.calories * food.servings,
+                consumed: logs[idx].consumed + scaledFood.calories * scaledFood.servings,
                 foods: [...logs[idx].foods, entry],
             };
         } else {
-            logs.push({ date: d, consumed: food.calories * food.servings, burned: 0, target: 2000, foods: [entry] });
+            logs.push({ date: d, consumed: scaledFood.calories * scaledFood.servings, burned: 0, target: 2000, foods: [entry] });
         }
         set({ calorieLogs: logs.slice(-90) });
         // Also add sugar
-        if (food.sugar > 0) {
-            get().addSugar(Math.round(food.sugar * food.servings));
+        if (scaledFood.sugar > 0) {
+            get().addSugar(Math.round(scaledFood.sugar * scaledFood.servings));
         }
         autoSave(get);
     },

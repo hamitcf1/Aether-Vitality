@@ -99,6 +99,8 @@ export interface AetherState {
     daysActive: number;
     unlockedAchievements: string[];
     quests: Quest[];
+    rerolledQuests: string[]; // Track quest titles rerolled today
+    lastRerollDate: string;   // Date of last reroll usage
     journal: JournalEntry[];
     chatHistory: ChatMessage[];
     mealHistory: MealLog[];
@@ -138,6 +140,7 @@ export interface AetherState {
     addQuest: (quest: any) => void;
     updateQuestProgress: (questId: string, progress: number) => void;
     completeQuest: (questId: string) => void;
+    rerollQuest: (questId: string) => void;
     generateDailyQuests: () => void;
     addJournalEntry: (entry: string, mood: string) => void;
     addChatMessage: (message: any) => void;

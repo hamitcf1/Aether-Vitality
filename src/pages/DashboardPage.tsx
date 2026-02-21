@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Heart, Zap, Star, Flame, MessageCircle, X,
+    Heart, Zap, Star, Flame, MessageCircle,
     TrendingUp, Target, UtensilsCrossed, Droplets,
     Footprints, Candy, Sparkles, Shield, CigaretteOff, Ban, ChevronDown, ChevronUp
 } from 'lucide-react';
@@ -14,30 +14,18 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { XPRing } from '../components/ui/XPRing';
 import { QuestCard } from '../components/ui/QuestCard';
 import { MiniTracker } from '../components/ui/MiniTracker';
+import { MealLogModal } from '../components/modals/MealLogModal';
 import { useAetherStore } from '../store/aetherStore';
 import { useTrackersStore } from '../store/trackersStore';
 import { useGreeting } from '../hooks/useGreeting';
 import { getXPProgress, getXPForNextLevel } from '../lib/achievements';
-import { getAlchemistAdvice } from '../lib/gemini';
 import { getDailyInsight } from '../lib/aiInsights';
-import { analyzeMeal, calculateHealthImpact, validateFoodInput } from '../lib/aiFoodAnalyzer';
 import { isAIAvailable } from '../lib/aiProvider';
 import { useToast } from '../context/ToastContext';
 import { useSound } from '../lib/SoundManager';
 import { StreakCalendar } from '../components/trackers/StreakCalendar';
 import { TutorialModal } from '../components/ui/TutorialModal';
 // StatCard and MiniTracker now handle their own tooltips internally
-
-const PREDEFINED_MEALS = [
-    { name: 'Apple', emoji: '🍎', calories: 95, sugar: 19, protein: 0.5, carbs: 25, fat: 0.3 },
-    { name: 'Banana', emoji: '🍌', calories: 105, sugar: 14, protein: 1.3, carbs: 27, fat: 0.4 },
-    { name: 'Chicken Breast (150g)', emoji: '🍗', calories: 250, sugar: 0, protein: 46, carbs: 0, fat: 5 },
-    { name: 'Boiled Egg', emoji: '🥚', calories: 70, sugar: 0.6, protein: 6, carbs: 0.6, fat: 5 },
-    { name: 'Greek Yogurt', emoji: '🥛', calories: 130, sugar: 6, protein: 12, carbs: 9, fat: 4 },
-    { name: 'Salad Bowl', emoji: '🥗', calories: 180, sugar: 4, protein: 5, carbs: 12, fat: 12 },
-    { name: 'Black Coffee', emoji: '☕', calories: 2, sugar: 0, protein: 0.3, carbs: 0, fat: 0 },
-    { name: 'Green Tea', emoji: '🍵', calories: 2, sugar: 0, protein: 0, carbs: 0, fat: 0 },
-];
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
@@ -61,6 +49,8 @@ export const DashboardPage: React.FC = () => {
     const logMeal = useAetherStore((s) => s.logMeal);
     const updateQuestProgress = useAetherStore((s) => s.updateQuestProgress);
     const completeQuest = useAetherStore((s) => s.completeQuest);
+    const rerollQuest = useAetherStore((s) => s.rerollQuest);
+    const rerolledQuests = useAetherStore((s) => s.rerolledQuests);
 
     const getTodayWater = useTrackersStore((s) => s.getTodayWater);
     const getTodaySteps = useTrackersStore((s) => s.getTodaySteps);
@@ -76,16 +66,11 @@ export const DashboardPage: React.FC = () => {
     const widgetStates = useAetherStore((s) => s.widgetStates);
     const toggleWidget = useAetherStore((s) => s.toggleWidget);
     const aiTokens = useAetherStore((s) => s.aiTokens);
-    const spendAIToken = useAetherStore((s) => s.spendAIToken);
 
     const greeting = useGreeting(profile?.name || 'Seeker');
 
     const [showMealModal, setShowMealModal] = useState(false);
-    const [mealInput, setMealInput] = useState('');
-    const [isLogging, setIsLogging] = useState(false);
-
     const [aiInsight, setAiInsight] = useState<string | null>(null);
-    const [validationError, setValidationError] = useState<string | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
 
     const dashboardSteps = [
@@ -152,155 +137,35 @@ export const DashboardPage: React.FC = () => {
         return 1.0 + (streak * 0.01);
     }, [streak]);
 
-    const handleLogMeal = useCallback(async () => {
-        if (!mealInput.trim()) return;
-
-        // Check tokens
-        if (aiTokens < 1) {
-            addToast('Exhausted of Essence. Visit the Treasury or wait for refill.', 'error');
-            navigate('/treasury');
-            return;
-        }
-
-        play('click');
-        setIsLogging(true);
-        setValidationError(null);
-
-        try {
-            // Split by newlines, process non-empty lines
-            const mealLines = mealInput.split('\n').map(l => l.trim()).filter(Boolean);
-            if (mealLines.length === 0) {
-                setIsLogging(false);
-                return;
-            }
-
-            let totalHpImpact = 0;
-            let successCount = 0;
-            let wasNutritionTracked = false;
-            const combinedAdvice: string[] = [];
-
-            for (const line of mealLines) {
-                // Validate input first
-                const validation = await validateFoodInput(line);
-                if (!validation.isFood) {
-                    addToast(`Skipped "${line}": ${validation.reason}`, 'error');
-                    continue; // Skip invalid lines, but keep processing others
-                }
-
-                // Try AI-powered meal analysis
-                const mealAnalysis = await analyzeMeal(line);
-                let currentHpImpact: number;
-                let currentAdvice: string;
-
-                if (mealAnalysis) {
-                    wasNutritionTracked = true;
-                    const impact = calculateHealthImpact(mealAnalysis.healthScore);
-                    currentHpImpact = impact.hpImpact;
-                    currentAdvice = mealAnalysis.advice;
-
-                    // Also log individual items with their specific portions
-                    if (mealAnalysis.items && mealAnalysis.items.length > 0) {
-                        mealAnalysis.items.forEach(item => {
-                            addFood({
-                                foodId: `meal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-                                name: item.name,
-                                emoji: item.emoji || '🍽️',
-                                calories: item.calories,
-                                sugar: item.sugar,
-                                protein: item.protein,
-                                carbs: item.carbs,
-                                fat: item.fat,
-                                servings: item.quantity || 1,
-                            });
-                        });
-                    } else if (mealAnalysis.totalCalories > 0) {
-                        // Fallback for aggregate only
-                        addFood({
-                            foodId: `meal_${Date.now()}`,
-                            name: line,
-                            emoji: '🍽️',
-                            calories: mealAnalysis.totalCalories,
-                            sugar: mealAnalysis.totalSugar,
-                            protein: mealAnalysis.totalProtein,
-                            carbs: mealAnalysis.totalCarbs,
-                            fat: mealAnalysis.totalFat,
-                            servings: 1,
-                        });
-                    }
-                } else {
-                    // Fallback to old method
-                    const profileStr = `Goal: ${profile?.healthGoal}, Difficulty: ${profile?.difficulty}, HP: ${hp}`;
-                    currentAdvice = await getAlchemistAdvice(line, profileStr);
-                    const positive = /healthy|green|salad|fish|chicken|fruit|vegetable|water|soup|oat/i.test(line);
-                    currentHpImpact = positive ? Math.floor(Math.random() * 10 + 5) : -Math.floor(Math.random() * 10 + 3);
-                }
-
-                totalHpImpact += currentHpImpact;
-                combinedAdvice.push(currentAdvice);
-                successCount++;
-            }
-
-            if (successCount === 0) {
-                setValidationError('None of the lines provided were valid foods.');
-                play('error');
-                setIsLogging(false);
-                return;
-            }
-
-            // Log single combined meal entry to history
-            const compositeAdvice = combinedAdvice.join(' ');
-            logMeal(
-                mealLines.length > 1 ? `${mealLines.length} items logged` : mealLines[0],
-                totalHpImpact,
-                compositeAdvice
-            );
-
-            // Deduct AI Token
-            spendAIToken(1);
-
-            // Update quest progress for meal logging
-            quests.forEach((q: any) => {
-                if (q.title === 'Substance Analysis' && !q.completed) {
-                    updateQuestProgress(q.id, q.progress + successCount);
-                }
-            });
-
-            if (wasNutritionTracked) {
-                addToast(`Successfully tracked ${successCount} ${successCount === 1 ? 'item' : 'items'}.`, 'success');
-            } else {
-                addToast(`Logged ${successCount} ${successCount === 1 ? 'item' : 'items'}, but nutrition analysis failed.`, 'error');
-            }
-            play('success');
-
-            setMealInput('');
-            setShowMealModal(false);
-        } catch {
-            addToast('Failed to process sustenance.', 'error');
-            play('error');
-        }
-        setIsLogging(false);
-    }, [mealInput, aiTokens, navigate, addToast, play, spendAIToken, profile, hp, quests, logMeal, updateQuestProgress, addFood]);
-
-    const handleQuickLog = useCallback((food: typeof PREDEFINED_MEALS[0]) => {
+    const handleLoggedMeal = useCallback((meal: string, hpImpact: number, advice: string, items: any[]) => {
         play('success');
-        addFood({
-            foodId: `quick_${Date.now()}`,
-            name: food.name,
-            emoji: food.emoji,
-            calories: food.calories,
-            sugar: food.sugar,
-            protein: food.protein,
-            carbs: food.carbs,
-            fat: food.fat,
-            servings: 1,
+
+        // Log individual items to nutrition tracker
+        items.forEach(item => {
+            addFood({
+                foodId: `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                name: item.name,
+                emoji: item.emoji || '🍽️',
+                calories: item.calories,
+                sugar: item.sugar,
+                protein: item.protein,
+                carbs: item.carbs,
+                fat: item.fat,
+                servings: 1
+            }, item.servings || 1);
         });
 
-        const hpImpact = calculateHealthImpact(85).hpImpact; // Standard healthy impact for quick logs
-        logMeal(food.name, hpImpact, `Nourished with ${food.name}. A wise choice, Seeker.`);
+        // Log to meal history
+        logMeal(meal, hpImpact, advice);
 
-        addToast(`${food.name} logged manually (No Essence spent).`, 'success');
-        setShowMealModal(false);
-    }, [play, addFood, logMeal, addToast]);
+        // Update quest progress
+        quests.forEach((q: any) => {
+            if (q.title === 'Substance Analysis' && !q.completed) {
+                updateQuestProgress(q.id, q.progress + items.length);
+            }
+        });
+
+    }, [play, addFood, logMeal, quests, updateQuestProgress, addToast]);
 
     return (
         <PageTransition className="space-y-6">
@@ -609,6 +474,11 @@ export const DashboardPage: React.FC = () => {
                                             key={quest.id}
                                             quest={quest}
                                             onComplete={() => completeQuest(quest.id)}
+                                            onReroll={() => {
+                                                rerollQuest(quest.id);
+                                                addToast('Quest rerolled! A new path awaits.', 'success');
+                                            }}
+                                            canReroll={quest.type === 'daily' && !rerolledQuests.includes(quest.title)}
                                         />
                                     ))}
                                 </div>
@@ -658,103 +528,13 @@ export const DashboardPage: React.FC = () => {
                 </GlassCard>
             )}
 
-            {/* Meal Log Modal */}
-            <AnimatePresence>
-                {showMealModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                        onClick={() => !isLogging && setShowMealModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, y: 10 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.95, y: 10 }}
-                            className="glass p-6 w-full max-w-md"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-black text-white">Log Meal</h3>
-                                <button onClick={() => setShowMealModal(false)} className="btn-ghost p-1">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <p className="text-sm text-gray-500 mb-2">What did you consume, Seeker?</p>
-                            <p className="text-xs text-emerald-400/60 mb-4 flex items-center gap-1">
-                                <Sparkles className="w-3 h-3" /> Separate multiple items with newlines
-                            </p>
-                            <textarea
-                                value={mealInput}
-                                onChange={(e) => {
-                                    setMealInput(e.target.value);
-                                    if (validationError) setValidationError(null);
-                                }}
-                                placeholder="e.g.&#10;Grilled salmon with broccoli&#10;2 cups of black coffee&#10;1 banana"
-                                autoFocus
-                            />
-
-                            {/* Quick Log Options */}
-                            <div className="mb-6">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
-                                    Quick Log (Free)
-                                </p>
-                                <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1 no-scrollbar">
-                                    {PREDEFINED_MEALS.map((food) => (
-                                        <button
-                                            key={food.name}
-                                            onClick={() => handleQuickLog(food)}
-                                            className="glass-subtle hover:bg-white/10 p-2 rounded-xl text-left flex items-center gap-2 transition-all group"
-                                        >
-                                            <span className="text-sm group-hover:scale-110 transition-transform">{food.emoji}</span>
-                                            <span className="text-[10px] font-bold text-gray-300 truncate">{food.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {validationError && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 mb-4"
-                                >
-                                    <p className="text-xs text-rose-400 font-bold flex items-center gap-2">
-                                        <X className="w-3 h-3" /> {validationError}
-                                    </p>
-                                </motion.div>
-                            )}
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={handleLogMeal}
-                                    disabled={!mealInput.trim() || isLogging}
-                                    className="btn-primary flex-1 flex items-center justify-center gap-2"
-                                >
-                                    {isLogging ? (
-                                        <>
-                                            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
-                                            AI Analyzing...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="w-4 h-4" /> Log & AI Analyze
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            <div className="mt-4 flex items-center justify-center gap-2">
-                                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">
-                                    Available Essence:
-                                </p>
-                                <div className="flex items-center gap-1 text-[10px] font-black text-emerald-400">
-                                    {aiTokens} / 50 <Sparkles className="w-3 h-3 saturate-0 opacity-50" />
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <MealLogModal
+                isOpen={showMealModal}
+                onClose={() => setShowMealModal(false)}
+                onLog={handleLoggedMeal}
+                aiTokens={aiTokens}
+                recentMeals={mealHistory}
+            />
         </PageTransition>
     );
 };
