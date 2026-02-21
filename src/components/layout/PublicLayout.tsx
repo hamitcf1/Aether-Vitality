@@ -1,5 +1,12 @@
+import React, { Suspense } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
+
+const PageLoader = () => (
+    <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+    </div>
+);
 
 export function PublicLayout() {
     const navigate = useNavigate();
@@ -44,7 +51,9 @@ export function PublicLayout() {
 
             {/* Page Content */}
             <div className="flex-grow pt-16">
-                <Outlet />
+                <Suspense fallback={<PageLoader />}>
+                    <Outlet />
+                </Suspense>
             </div>
 
             {/* Footer */}

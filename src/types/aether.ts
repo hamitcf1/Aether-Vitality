@@ -119,6 +119,7 @@ export interface AetherState {
     lastTokenRefill: number;
     seenTutorials: string[];
     widgetStates: Record<string, { minimized: boolean }>;
+    collapsedNavGroups: Record<string, boolean>;
     following: string[];
     followers: string[];
     friends: string[];
@@ -163,6 +164,7 @@ export interface AetherState {
     rateUser: (targetUid: string, rating: number) => Promise<void>;
     markTutorialSeen: (pageId: string) => void;
     toggleWidget: (widgetId: string) => void;
+    toggleNavGroup: (label: string) => void;
     clearExpPopup: (id: number) => void;
     exportData: () => string;
     updateStreak: () => void;

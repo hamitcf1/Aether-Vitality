@@ -1,8 +1,16 @@
+import React, { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { NavBar } from '../ui/NavBar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AnimatedBackground } from '../ui/AnimatedBackground';
 import { ExpPopups } from '../ui/ExpPopups';
+import { Loader2 } from 'lucide-react';
+
+const PageLoader = () => (
+    <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+    </div>
+);
 
 export function DashboardLayout() {
     const location = useLocation();
@@ -22,7 +30,9 @@ export function DashboardLayout() {
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
                         >
-                            <Outlet />
+                            <Suspense fallback={<PageLoader />}>
+                                <Outlet />
+                            </Suspense>
                         </motion.div>
                     </AnimatePresence>
                 </div>

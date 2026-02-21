@@ -40,7 +40,7 @@ const DATA_KEYS = [
     'unlockedAchievements', 'quests', 'journal', 'chatHistory', 'mealHistory',
     'hpHistory', 'coins', 'inventory', 'equipped', 'activeBoosts',
     'aiTokens', 'maxAiTokens', 'lastTokenRefill', 'seenTutorials', 'widgetStates',
-    'following', 'followers', 'friends', 'pendingFriends', 'ratings'
+    'collapsedNavGroups', 'following', 'followers', 'friends', 'pendingFriends', 'ratings'
 ] as const;
 
 function getDataSnapshot(state: AetherState): Record<string, unknown> {
@@ -98,6 +98,7 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     lastTokenRefill: 0,
     seenTutorials: [],
     widgetStates: {},
+    collapsedNavGroups: {},
     following: [],
     followers: [],
     friends: [],
@@ -430,6 +431,11 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     toggleWidget: (widgetId: string) => {
         const current = get().widgetStates[widgetId]?.minimized || false;
         set((s: AetherState) => ({ widgetStates: { ...s.widgetStates, [widgetId]: { minimized: !current } } }));
+        autoSave(get);
+    },
+    toggleNavGroup: (label: string) => {
+        const next = { ...get().collapsedNavGroups, [label]: !get().collapsedNavGroups[label] };
+        set({ collapsedNavGroups: next });
         autoSave(get);
     },
     clearExpPopup: (id: number) => set((s: AetherState) => ({ expPopups: s.expPopups.filter((p: any) => p.id !== id) }))

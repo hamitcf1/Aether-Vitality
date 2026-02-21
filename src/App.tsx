@@ -104,56 +104,54 @@ const App: React.FC = () => {
         <IOSInstallInstructions />
         <CustomCursor />
 
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public Routes */}
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-              <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
-            </Route>
+        <Routes>
+          {/* Public Routes */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+            <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+          </Route>
 
-            {/* Protected Routes */}
-            <Route element={user ? <><GamificationOverlay /><DashboardLayout /></> : <Navigate to="/login" replace />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/trackers" element={<TrackersPage />} />
+          {/* Protected Routes */}
+          <Route element={user ? <><GamificationOverlay /><DashboardLayout /></> : <Navigate to="/login" replace />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/trackers" element={<TrackersPage />} />
 
-              {/* Premium Features */}
-              <Route path="/reports" element={
-                <Restricted feature="canAccessReports">
-                  <ReportsPage />
-                </Restricted>
-              } />
-              <Route path="/gaming" element={
-                <Restricted feature="canAccessGamification">
-                  <GamingPage />
-                </Restricted>
-              } />
-              <Route path="/chat" element={
-                <Restricted feature="canAccessAI">
-                  <ChatPage />
-                </Restricted>
-              } />
+            {/* Premium Features */}
+            <Route path="/reports" element={
+              <Restricted feature="canAccessReports">
+                <ReportsPage />
+              </Restricted>
+            } />
+            <Route path="/gaming" element={
+              <Restricted feature="canAccessGamification">
+                <GamingPage />
+              </Restricted>
+            } />
+            <Route path="/chat" element={
+              <Restricted feature="canAccessAI">
+                <ChatPage />
+              </Restricted>
+            } />
 
-              <Route path="/journal" element={<JournalPage />} />
-              <Route path="/meditation" element={<MeditationPage />} />
+            <Route path="/journal" element={<JournalPage />} />
+            <Route path="/meditation" element={<MeditationPage />} />
 
-              <Route path="/guilds" element={<GuildsPage />} />
-              <Route path="/shop" element={<ShopPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
-              <Route path="/community" element={<CommunityPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/treasury" element={<TreasuryPage />} />
-            </Route>
+            <Route path="/guilds" element={<GuildsPage />} />
+            <Route path="/shop" element={<ShopPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/treasury" element={<TreasuryPage />} />
+          </Route>
 
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
       </div>
     </ToastProvider>
   );

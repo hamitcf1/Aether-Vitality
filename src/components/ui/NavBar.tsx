@@ -4,6 +4,7 @@ import { LayoutDashboard, MessageCircle, MessageSquare, User, Sparkles, Activity
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { useUserStore } from '../../store/userStore';
+import { useAetherStore } from '../../store/aetherStore';
 import { useAuthStore } from '../../store/authStore';
 
 const navGroups = [
@@ -55,18 +56,8 @@ export const NavBar: React.FC = () => {
     const { features } = useUserStore();
     const logout = useAuthStore(s => s.signOut);
     const [time, setTime] = React.useState(new Date());
-    const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>(() => {
-        const saved = localStorage.getItem('collapsedNavGroups');
-        return saved ? JSON.parse(saved) : {};
-    });
-
-    const toggleGroup = (label: string) => {
-        setCollapsedGroups(prev => {
-            const next = { ...prev, [label]: !prev[label] };
-            localStorage.setItem('collapsedNavGroups', JSON.stringify(next));
-            return next;
-        });
-    };
+    const collapsedGroups = useAetherStore((s) => s.collapsedNavGroups);
+    const toggleGroup = useAetherStore((s) => s.toggleNavGroup);
 
     React.useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
