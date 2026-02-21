@@ -66,6 +66,24 @@ You will need to fill in the **Gemini API Keys** (see Section 3).
 
 ---
 
+## 2.1 Firestore Indexes
+
+The application requires certain composite indexes to function correctly, particularly for private messaging and user search.
+
+1.  Go to **Build > Firestore Database** in the sidebar.
+2.  Click the **Indexes** tab.
+3.  Add the following composite indexes:
+
+| Collection    | Fields                                      | Query Scope |
+| :------------ | :------------------------------------------ | :---------- |
+| `conversations` | `participants` (Array), `lastTimestamp` (Desc) | Collection  |
+| `messages`      | `convId` (Asc), `timestamp` (Asc)           | Collection  |
+| `users`         | `name` (Asc)                                | Collection  |
+
+*Note: Firebase may provide a direct link to create missing indexes in the browser console logs if they are not yet created.*
+
+---
+
 ## 3. Gemini API Keys
 
 To avoid hitting rate limits, this app uses a pool of 8 API keys.

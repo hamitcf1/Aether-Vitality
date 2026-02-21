@@ -4,6 +4,7 @@ import { Wind, Play, Square, Clock, Settings2 } from 'lucide-react';
 import { PageTransition } from '../components/layout/PageTransition';
 import { GlassCard } from '../components/ui/GlassCard';
 import { useJournalStore } from '../store/journalStore';
+import { useAetherStore } from '../store/aetherStore';
 
 type BreathingPreset = 'calm' | 'awake' | 'box';
 type Phase = 'inhale' | 'hold1' | 'exhale' | 'hold2';
@@ -15,7 +16,13 @@ const PRESETS: Record<BreathingPreset, { name: string; inhale: number; hold1: nu
 };
 
 export const MeditationPage: React.FC = () => {
-    const store = useJournalStore();
+    const meditationHistory = useJournalStore(s => s.meditationHistory);
+    const logMeditation = useJournalStore(s => s.logMeditation);
+    const getTotalMeditationMinutes = useJournalStore(s => s.getTotalMeditationMinutes);
+
+    const quests = useAetherStore(s => s.quests);
+    const updateQuestProgress = useAetherStore(s => s.updateQuestProgress);
+
     const [isActive, setIsActive] = useState(false);
     const [duration, setDuration] = useState(60); // seconds
     const [timeLeft, setTimeLeft] = useState(60);
@@ -42,14 +49,21 @@ export const MeditationPage: React.FC = () => {
     // Timer logic - Completion
     useEffect(() => {
         if (isActive && timeLeft === 0) {
-            setTimeout(() => setIsActive(false), 0);
-            store.logMeditation({
+            setIsActive(false);
+            logMeditation({
                 date: new Date().toISOString(),
                 durationSeconds: duration,
                 type: 'breathing',
             });
+
+            // Quest Progress: Mindful Breathing
+            quests.forEach(q => {
+                if (q.title === 'Mindful Breathing' && !q.completed) {
+                    updateQuestProgress(q.id, q.progress + 1);
+                }
+            });
         }
-    }, [isActive, timeLeft, duration, store]);
+    }, [isActive, timeLeft, duration, logMeditation, quests, updateQuestProgress]);
 
     // Breathing animation phase logic
     useEffect(() => {
@@ -249,11 +263,11 @@ export const MeditationPage: React.FC = () => {
                         <h3 className="text-sm font-bold text-white mb-3">Stats</h3>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="glass-subtle p-3 rounded-xl text-center">
-                                <p className="text-2xl font-black text-white">{store.meditationHistory.length}</p>
+                                <p className="text-2xl font-black text-white">{meditationHistory.length}</p>
                                 <p className="text-[10px] text-gray-500 uppercase">Sessions</p>
                             </div>
                             <div className="glass-subtle p-3 rounded-xl text-center">
-                                <p className="text-2xl font-black text-white">{store.getTotalMeditationMinutes()}m</p>
+                                <p className="text-2xl font-black text-white">{getTotalMeditationMinutes()}m</p>
                                 <p className="text-[10px] text-gray-500 uppercase">Total Time</p>
                             </div>
                         </div>

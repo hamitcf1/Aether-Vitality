@@ -191,13 +191,35 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         });
         get().addXP(10 + Math.abs(hpImpact));
         get().updateStreak();
+
+        // Quest Progress
+        state.quests.forEach(q => {
+            if (q.completed) return;
+            if (q.title === 'Nourishment Log') get().updateQuestProgress(q.id, q.progress + 1);
+            if (q.title === 'Green Elixir' && /salad|vegetable|green|broccoli|spinach/i.test(meal)) {
+                get().updateQuestProgress(q.id, q.progress + 1);
+            }
+            if (q.title === 'Early Riser') {
+                const hour = new Date().getHours();
+                if (hour < 9) get().updateQuestProgress(q.id, q.progress + 1);
+            }
+        });
     },
 
     addQuest: (quest: any) => { set((s: AetherState) => ({ quests: [...s.quests, quest] })); autoSave(get); },
     updateQuestProgress: (questId: string, progress: number) => {
+        const state = get();
+        const quest = state.quests.find((q: any) => q.id === questId);
+        if (!quest || quest.completed) return;
+
+        const newProgress = Math.min(progress, quest.target);
         set((s: AetherState) => ({
-            quests: s.quests.map((q: any) => q.id === questId ? { ...q, progress: Math.min(progress, q.target) } : q)
+            quests: s.quests.map((q: any) => q.id === questId ? { ...q, progress: newProgress } : q)
         }));
+
+        if (newProgress >= quest.target) {
+            get().completeQuest(questId);
+        }
         autoSave(get);
     },
     completeQuest: (questId: string) => {
@@ -247,11 +269,27 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         const newEntry: JournalEntry = { id: uid(), date: format(new Date(), 'yyyy-MM-dd HH:mm'), entry, mood, hpAtTime: get().hp };
         set((s: AetherState) => ({ journal: [newEntry, ...s.journal].slice(0, 200) }));
         get().addXP(15);
+
+        // Quest Progress
+        get().quests.forEach(q => {
+            if (q.title === 'Journal Entry' && !q.completed) {
+                get().updateQuestProgress(q.id, q.progress + 1);
+            }
+        });
     },
 
     addChatMessage: (message: any) => {
         const newMessage: ChatMessage = { ...message, id: uid(), timestamp: Date.now() };
         set((s: AetherState) => ({ chatHistory: [...s.chatHistory, newMessage] }));
+
+        if (message.role === 'user') {
+            get().quests.forEach(q => {
+                if ((q.title === "Oracle's Insight" || q.title === "Consult the Oracle") && !q.completed) {
+                    get().updateQuestProgress(q.id, q.progress + 1);
+                }
+            });
+        }
+
         if (message.gameUpdates) {
             const u = message.gameUpdates;
             if (u.hp) get().setHP(get().hp + u.hp);
