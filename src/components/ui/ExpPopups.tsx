@@ -8,7 +8,7 @@ export const ExpPopups: React.FC = () => {
     return (
         <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
             <AnimatePresence>
-                {expPopups.map((popup) => (
+                {expPopups.map((popup: any) => (
                     <motion.div
                         key={popup.id}
                         initial={{ opacity: 0, y: popup.y, x: popup.x, scale: 0.5 }}

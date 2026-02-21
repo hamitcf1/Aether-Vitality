@@ -35,7 +35,7 @@ export const ProfilePage: React.FC = () => {
     const [showAISettings, setShowAISettings] = useState(false);
     const [cursorEnabled, setCursorEnabledState] = useState(getCursorEnabled());
 
-    const GoalIcon = goalIcons[profile?.healthGoal || 'liver'];
+    const GoalIcon = goalIcons[(profile?.healthGoal as keyof typeof goalIcons) || 'liver'] || Heart;
     const tokenStats = getTokenStats();
 
     const handleExport = () => {
@@ -182,7 +182,7 @@ export const ProfilePage: React.FC = () => {
                             className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-black uppercase tracking-[0.2em] focus:outline-none focus:border-emerald-500/50 cursor-pointer text-center"
                         >
                             <option value="Novice">Novice</option>
-                            {store.unlockedAchievements.map(id => {
+                            {store.unlockedAchievements.map((id: string) => {
                                 const ach = ACHIEVEMENTS.find(a => a.id === id);
                                 if (!ach) return null;
                                 return <option key={id} value={id}>{ach.title}</option>

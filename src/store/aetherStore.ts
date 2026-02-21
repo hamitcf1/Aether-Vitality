@@ -371,7 +371,7 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         autoSave(get);
     },
     unfollowUser: async (targetUid: string) => {
-        set((s: AetherState) => ({ following: s.following.filter(id => id !== targetUid) }));
+        set((s: AetherState) => ({ following: s.following.filter((id: string) => id !== targetUid) }));
         autoSave(get);
     },
     sendFriendRequest: async (targetUid: string) => {

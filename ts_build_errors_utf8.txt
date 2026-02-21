@@ -1,0 +1,50 @@
+﻿src/components/social/HeroCard.tsx(201,69): error TS2339: Property 'removeFriend' does not exist on type 'AetherState'.
+src/components/ui/GamificationOverlay.tsx(19,55): error TS2339: Property 'checkAchievements' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(67,15): error TS2339: Property 'checkAndRefillDailyTokens' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(122,20): error TS2339: Property 'spendAIToken' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(123,19): error TS2339: Property 'addChatMessage' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(130,15): error TS2339: Property 'addChatMessage' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(131,15): error TS2551: Property 'setAILoading' does not exist on type 'AetherState'. Did you mean 'isAILoading'?
+src/pages/ChatPage.tsx(145,23): error TS2339: Property 'addChatMessage' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(165,23): error TS2339: Property 'addChatMessage' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(168,23): error TS2339: Property 'addChatMessage' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(177,19): error TS2339: Property 'addChatMessage' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(183,15): error TS2551: Property 'setAILoading' does not exist on type 'AetherState'. Did you mean 'isAILoading'?
+src/pages/ChatPage.tsx(230,48): error TS2339: Property 'clearChat' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(282,47): error TS2339: Property 'addCoins' does not exist on type 'AetherState'.
+src/pages/ChatPage.tsx(283,47): error TS2339: Property 'refillAITokens' does not exist on type 'AetherState'.
+src/pages/DashboardPage.tsx(59,50): error TS2339: Property 'updateStreak' does not exist on type 'AetherState'.
+src/pages/DashboardPage.tsx(61,45): error TS2339: Property 'logMeal' does not exist on type 'AetherState'.
+src/pages/DashboardPage.tsx(79,50): error TS2339: Property 'spendAIToken' does not exist on type 'AetherState'.
+src/pages/OnboardingPage.tsx(54,13): error TS2353: Object literal may only specify known properties, and 'createdAt' does not exist in type 'UserProfile'.
+src/pages/ShopPage.tsx(11,41): error TS2339: Property 'purchaseItem' does not exist on type 'AetherState'.
+src/pages/ShopPage.tsx(103,60): error TS2345: Argument of type 'string' is not assignable to parameter of type 'InventoryItem'.
+src/pages/social/GuildsPage.tsx(41,22): error TS2339: Property 'guildId' does not exist on type 'UserProfile'.
+src/pages/social/GuildsPage.tsx(43,52): error TS2339: Property 'guildId' does not exist on type 'UserProfile'.
+src/pages/social/GuildsPage.tsx(49,18): error TS2339: Property 'guildId' does not exist on type 'UserProfile'.
+src/pages/TreasuryPage.tsx(11,43): error TS2339: Property 'buyAITokens' does not exist on type 'AetherState'.
+src/pages/TreasuryPage.tsx(25,28): error TS2339: Property 'subscriptionTier' does not exist on type 'UserProfile'.
+src/store/aetherStore.ts(168,55): error TS2322: Type 'ExpPopup | { id: number; amount: number; x: number; y: number; }' is not assignable to type 'ExpPopup'.
+  Type '{ id: number; amount: number; x: number; y: number; }' is not assignable to type 'ExpPopup'.
+    Types of property 'id' are incompatible.
+      Type 'number' is not assignable to type 'string'.
+src/store/aetherStore.ts(168,75): error TS2322: Type '{ id: number; amount: number; x: number; y: number; }' is not assignable to type 'ExpPopup'.
+  Types of property 'id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+src/store/aetherStore.ts(169,15): error TS2339: Property 'addCoins' does not exist on type 'AetherState'.
+src/store/aetherStore.ts(190,82): error TS2561: Object literal may only specify known properties, but 'advice' does not exist in type 'MealLog'. Did you mean to write 'aiAdvice'?
+src/store/aetherStore.ts(198,15): error TS2339: Property 'updateStreak' does not exist on type 'AetherState'.
+src/store/aetherStore.ts(217,38): error TS2339: Property 'addCoins' does not exist on type 'AetherState'.
+src/store/aetherStore.ts(252,53): error TS2353: Object literal may only specify known properties, and 'date' does not exist in type 'JournalEntry'.
+src/store/aetherStore.ts(289,5): error TS2322: Type '() => void' is not assignable to type '() => Promise<void>'.
+  Type 'void' is not assignable to type 'Promise<void>'.
+src/store/aetherStore.ts(302,55): error TS2345: Argument of type 'string' is not assignable to parameter of type 'InventoryItem'.
+src/store/aetherStore.ts(323,39): error TS2345: Argument of type 'string' is not assignable to parameter of type 'InventoryItem'.
+src/store/aetherStore.ts(432,5): error TS2322: Type '(id: number) => void' is not assignable to type '(id: string) => void'.
+  Types of parameters 'id' and 'id' are incompatible.
+    Type 'string' is not assignable to type 'number'.
+src/store/authStore.ts(149,35): error TS2339: Property 'clearAllData' does not exist on type 'AetherState'.
+src/store/guildsStore.ts(122,66): error TS2353: Object literal may only specify known properties, and 'guildId' does not exist in type 'UserProfile'.
+src/store/guildsStore.ts(152,66): error TS2353: Object literal may only specify known properties, and 'guildId' does not exist in type 'UserProfile'.
+src/store/guildsStore.ts(175,35): error TS2339: Property 'guildId' does not exist on type '{ name: string; avatar: string; healthGoal: "liver" | "anxiety" | "discipline"; difficulty: "casual" | "committed" | "ascendant"; isPublic?: boolean | undefined; bio?: string | undefined; ... 6 more ...; packageTier?: PackageTier | undefined; }'.
+src/store/guildsStore.ts(391,35): error TS2339: Property 'guildId' does not exist on type '{ name: string; avatar: string; healthGoal: "liver" | "anxiety" | "discipline"; difficulty: "casual" | "committed" | "ascendant"; isPublic?: boolean | undefined; bio?: string | undefined; ... 6 more ...; packageTier?: PackageTier | undefined; }'.

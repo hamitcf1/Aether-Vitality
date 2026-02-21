@@ -24,6 +24,7 @@ export const CommunityPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
+    const [isSearching, setIsSearching] = useState(false);
 
     // Chat State
     const [messages, setMessages] = useState<GlobalChatMessage[]>([]);
@@ -141,6 +142,12 @@ export const CommunityPage: React.FC = () => {
                                 className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-cyan-500/50 shadow-xl"
                             />
                         </div>
+
+                        {isSearching && (
+                            <div className="flex justify-center py-4">
+                                <div className="w-6 h-6 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
+                            </div>
+                        )}
 
                         {selectedUser ? (
                             <div className="max-w-xl mx-auto">
