@@ -77,7 +77,7 @@ export const NavBar: React.FC = () => {
         <>
             {/* Desktop sidebar */}
             <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[260px] flex-col z-40 p-4">
-                <div className="glass rounded-2xl flex-1 flex flex-col p-4">
+                <div className="glass rounded-2xl h-full flex flex-col p-4 overflow-hidden relative">
                     {/* Logo */}
                     <div className="flex items-center gap-3 px-3 pt-2 pb-6">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center shadow-glow-sm">

@@ -503,7 +503,7 @@ export const DashboardPage: React.FC = () => {
                             🍽️ {mealsLogged} meals
                         </span>
                         <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded-lg font-medium">
-                            📜 {questsCompleted} quests
+                            📜 {questsCompleted} done
                         </span>
                     </div>
                 </GlassCard>
@@ -594,7 +594,7 @@ export const DashboardPage: React.FC = () => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                             <Target className="w-4 h-4 text-cyan-400" />
-                            <h3 className="text-sm font-bold text-white">Active Quests</h3>
+                            <h3 className="text-sm font-bold text-white">Active Quests ({activeQuests.length})</h3>
                         </div>
                         <button onClick={() => toggleWidget('activeQuests')} className="p-1 glass-subtle hover:text-white transition-colors">
                             {widgetStates['activeQuests']?.minimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}

@@ -219,10 +219,32 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     generateDailyQuests: () => {
         const state = get() as any;
         const today = format(new Date(), 'yyyy-MM-dd');
-        if (state.quests.some((q: any) => q.type === 'daily' && q.id.startsWith(today))) return;
-        const shuffled = [...DAILY_QUESTS_POOL].sort(() => Math.random() - 0.5);
-        const picked = shuffled.slice(0, 3).map(q => ({ ...q, id: `${today}-${uid()}`, progress: 0, completed: false }));
-        set((s: any) => ({ quests: [...picked, ...s.quests.filter((q: any) => q.type !== 'daily' || !q.completed)] }));
+
+        // Filter out completed daily quests from OTHER days
+        const existingDailyForToday = state.quests.filter((q: any) => q.type === 'daily' && q.id.startsWith(today));
+
+        if (existingDailyForToday.length >= 3) return;
+
+        // If we have fewer than 3 daily quests for today (maybe none), generate more
+        const needed = 3 - existingDailyForToday.length;
+        const shuffled = [...DAILY_QUESTS_POOL]
+            .filter(poolQuest => !existingDailyForToday.some((eq: any) => eq.title === poolQuest.title))
+            .sort(() => Math.random() - 0.5);
+
+        const picked = shuffled.slice(0, needed).map(q => ({
+            ...q,
+            id: `${today}-${uid()}`,
+            progress: 0,
+            completed: false
+        }));
+
+        set((s: any) => ({
+            quests: [
+                ...existingDailyForToday, // Keep today's existing quests
+                ...picked,                // Add newly generated ones
+                ...s.quests.filter((q: any) => q.type !== 'daily') // Keep non-daily quests (achievements etc)
+            ]
+        }));
         autoSave(get);
     },
 
