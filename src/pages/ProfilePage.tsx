@@ -17,6 +17,7 @@ import { useUserStore } from '../store/userStore';
 import { ACHIEVEMENTS } from '../lib/achievements';
 import { getTokenStats, AI_MODELS } from '../lib/aiProvider';
 import { PackageTier } from '../constants/packages';
+import { SHOP_ITEMS } from '../lib/ShopData';
 
 const AVATARS = ['🧙', '🧪', '⚗️', '🔮', '🌿', '🧬', '🦉', '🐉'];
 const goalIcons = { liver: Heart, anxiety: Brain, discipline: Shield };
@@ -89,8 +90,12 @@ export const ProfilePage: React.FC = () => {
     return (
         <PageTransition className="space-y-5">
             {/* Profile Header */}
-            <GlassCard className="text-center py-10" glow="emerald">
-                <div className="flex flex-col items-center">
+            <GlassCard className={`text-center py-10 relative overflow-hidden`} glow="emerald">
+                {/* Banner Overlay */}
+                {store.equipped?.banner && store.equipped.banner !== 'default' && (
+                    <div className={`absolute inset-0 opacity-40 pointer-events-none ${store.equipped.banner}`} />
+                )}
+                <div className="flex flex-col items-center relative z-10">
                     {/* Avatar */}
                     <div className="relative mb-4">
                         <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 border border-emerald-500/20 flex items-center justify-center text-4xl">
@@ -128,7 +133,9 @@ export const ProfilePage: React.FC = () => {
                         </div>
                     ) : (
                         <button onClick={() => setEditName(true)} className="group cursor-pointer">
-                            <h2 className="text-2xl font-black text-white group-hover:text-emerald-400 transition-colors">{profile?.name}</h2>
+                            <h2 className={`text-2xl font-black transition-colors ${store.equipped?.effect || 'text-white'} group-hover:text-emerald-400`}>
+                                {profile?.name}
+                            </h2>
                         </button>
                     )}
 
@@ -175,7 +182,7 @@ export const ProfilePage: React.FC = () => {
                     </div>
 
                     {/* Title Selector */}
-                    <div className="mt-3">
+                    <div className="mt-3 flex flex-wrap justify-center gap-2">
                         <select
                             value={store.equipped?.title || 'Novice'}
                             onChange={(e) => store.equipItem(e.target.value, 'title')}
@@ -188,6 +195,34 @@ export const ProfilePage: React.FC = () => {
                                 return <option key={id} value={id}>{ach.title}</option>
                             })}
                         </select>
+
+                        {/* Banner Selector (if any in inventory) */}
+                        {SHOP_ITEMS.filter(i => i.category === 'banner' && store.inventory.includes(i.id)).length > 0 && (
+                            <select
+                                value={SHOP_ITEMS.find(i => i.category === 'banner' && i.value === store.equipped.banner)?.id || 'default'}
+                                onChange={(e) => e.target.value !== 'default' && store.equipItem(e.target.value, 'banner')}
+                                className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-cyan-400 font-black uppercase tracking-wider focus:outline-none focus:border-cyan-500/50 cursor-pointer text-center"
+                            >
+                                <option value="default">Default Banner</option>
+                                {SHOP_ITEMS.filter(i => i.category === 'banner' && store.inventory.includes(i.id)).map(item => (
+                                    <option key={item.id} value={item.id}>{item.name}</option>
+                                ))}
+                            </select>
+                        )}
+
+                        {/* Effect Selector (if any in inventory) */}
+                        {SHOP_ITEMS.filter(i => i.category === 'effect' && store.inventory.includes(i.id)).length > 0 && (
+                            <select
+                                value={SHOP_ITEMS.find(i => i.category === 'effect' && i.value === store.equipped.effect)?.id || 'default'}
+                                onChange={(e) => e.target.value !== 'default' && store.equipItem(e.target.value, 'effect')}
+                                className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-black uppercase tracking-wider focus:outline-none focus:border-emerald-500/50 cursor-pointer text-center"
+                            >
+                                <option value="default">No Effect</option>
+                                {SHOP_ITEMS.filter(i => i.category === 'effect' && store.inventory.includes(i.id)).map(item => (
+                                    <option key={item.id} value={item.id}>{item.name}</option>
+                                ))}
+                            </select>
+                        )}
                     </div>
                 </div>
             </GlassCard>

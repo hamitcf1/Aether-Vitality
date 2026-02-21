@@ -149,12 +149,7 @@ export const DashboardPage: React.FC = () => {
     const { play } = useSound();
 
     const currentStreakMultiplier = useMemo(() => {
-        if (streak >= 90) return 2.0;
-        if (streak >= 60) return 1.75;
-        if (streak >= 30) return 1.5;
-        if (streak >= 7) return 1.25;
-        if (streak >= 3) return 1.1;
-        return 1.0;
+        return 1.0 + (streak * 0.01);
     }, [streak]);
 
     const handleLogMeal = useCallback(async () => {
@@ -359,7 +354,7 @@ export const DashboardPage: React.FC = () => {
                             })}
                         </div>
                         {currentStreakMultiplier > 1 && (
-                            <span className="text-[10px] font-black text-amber-500 ml-2">x{currentStreakMultiplier} XP</span>
+                            <span className="text-[10px] font-black text-amber-500 ml-2">x{currentStreakMultiplier.toFixed(2)} XP</span>
                         )}
                     </div>
                 </StatCard>

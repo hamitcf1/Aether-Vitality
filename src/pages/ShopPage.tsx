@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Coins, Check, Zap, Shield, Palette } from 'lucide-react';
+import { ShoppingBag, Coins, Check, Zap, Shield, Palette, Sparkles } from 'lucide-react';
 import { useAetherStore } from '../store/aetherStore';
 import { SHOP_ITEMS } from '../lib/ShopData';
 import type { ShopItem, ShopCategory } from '../lib/ShopData';
@@ -28,6 +28,8 @@ export const ShopPage: React.FC = () => {
     const categories: { id: ShopCategory | 'all', label: string, icon: React.ElementType }[] = [
         { id: 'all', label: 'All Items', icon: ShoppingBag },
         { id: 'theme', label: 'Themes', icon: Palette },
+        { id: 'banner', label: 'Banners', icon: Shield },
+        { id: 'effect', label: 'Effects', icon: Sparkles },
         { id: 'boost', label: 'Boosts', icon: Zap },
         { id: 'utility', label: 'Utility', icon: Shield },
     ];
@@ -101,7 +103,9 @@ export const ShopPage: React.FC = () => {
                 <AnimatePresence mode='popLayout'>
                     {filteredItems.map(item => {
                         const isOwned = inventory.includes(item.id);
-                        const isEquipped = item.category === 'theme' && equipped.theme === item.value;
+                        const isEquipped = (item.category === 'theme' && equipped.theme === item.value) ||
+                            (item.category === 'banner' && equipped.banner === item.value) ||
+                            (item.category === 'effect' && equipped.effect === item.value);
                         const canAfford = coins >= item.cost;
                         const isBoost = item.category === 'boost';
 

@@ -1,4 +1,4 @@
-export type ShopCategory = 'theme' | 'boost' | 'cosmetic' | 'utility';
+export type ShopCategory = 'theme' | 'boost' | 'cosmetic' | 'utility' | 'banner' | 'effect';
 
 export interface ShopItem {
     id: string;
@@ -7,7 +7,7 @@ export interface ShopItem {
     category: ShopCategory;
     cost: number;
     icon: string;
-    // For themes, this matches the CSS class or theme ID
+    // For themes/effects, this matches the CSS class or ID
     value?: string;
     // For boosts, duration in hours
     durationHours?: number;
@@ -43,15 +43,6 @@ export const SHOP_ITEMS: ShopItem[] = [
         value: 'cyberpunk'
     },
     {
-        id: 'theme_zen',
-        name: 'Zen Garden',
-        description: 'Calming nature tones for peaceful focus.',
-        category: 'theme',
-        cost: 500,
-        icon: '🎋',
-        value: 'zen'
-    },
-    {
         id: 'theme_gold',
         name: 'Midas Touch',
         description: 'Luxurious gold and black for the elite.',
@@ -59,6 +50,75 @@ export const SHOP_ITEMS: ShopItem[] = [
         cost: 5000,
         icon: '👑',
         value: 'gold'
+    },
+
+    // ── Banners ──
+    {
+        id: 'banner_standard',
+        name: 'Seeker Banner',
+        description: 'A simple, clean banner for the beginning of your journey.',
+        category: 'banner',
+        cost: 200,
+        icon: '🚩',
+        value: 'bg-gradient-to-r from-gray-800 to-gray-900'
+    },
+    {
+        id: 'banner_emerald',
+        name: 'Emerald Overlord',
+        description: 'A glowing emerald banner for the disciplined.',
+        category: 'banner',
+        cost: 1200,
+        icon: '🐍',
+        value: 'bg-gradient-to-r from-emerald-900/80 to-emerald-600/40 border-l-4 border-emerald-400'
+    },
+    {
+        id: 'banner_cosmic',
+        name: 'Cosmic Traveler',
+        description: 'The swirling stars accompany your every move.',
+        category: 'banner',
+        cost: 2500,
+        icon: '✨',
+        value: 'bg-gradient-to-r from-indigo-950 via-purple-900 to-indigo-950 animate-gradient-shift'
+    },
+
+    // ── Effects & Names ──
+    {
+        id: 'effect_glow_cyan',
+        name: 'Cyan Resonance',
+        description: 'Your name pulses with a biological blue glow.',
+        category: 'effect',
+        cost: 800,
+        icon: '❄️',
+        value: 'neon-text-cyan animate-glow-pulse'
+    },
+    {
+        id: 'effect_glow_emerald',
+        name: 'Vitality Core',
+        description: 'A vibrant green aura follows your interactions.',
+        category: 'effect',
+        cost: 1500,
+        icon: '🍀',
+        value: 'neon-text-emerald'
+    },
+
+    // ── Emojis & Titles ──
+    {
+        id: 'cosmetic_emoji_dragon',
+        name: 'Aether Dragon',
+        description: 'A rare emoji to show your true power.',
+        category: 'cosmetic',
+        cost: 1000,
+        icon: '🐉',
+        value: '🐉'
+    },
+    {
+        id: 'cosmetic_emoji_crown',
+        name: 'Vanguard Crown',
+        description: 'The ultimate mark of a champion.',
+        category: 'cosmetic',
+        cost: 3000,
+        icon: '👑',
+        value: '👑'
     },
 
     // ── Utility ──

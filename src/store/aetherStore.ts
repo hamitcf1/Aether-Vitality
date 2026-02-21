@@ -91,7 +91,7 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
     isAILoading: false,
     coins: 0,
     inventory: [],
-    equipped: { theme: 'default', frame: 'none', title: 'Novice' },
+    equipped: { theme: 'default', frame: 'none', title: 'Novice', banner: 'default', effect: 'none' },
     activeBoosts: [],
     aiTokens: 10,
     maxAiTokens: 10,
@@ -146,13 +146,7 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         const state = get();
         const xpBoost = state.activeBoosts.find((b: any) => b.type === 'xp' && b.expiresAt > Date.now());
         const finalXP = xpBoost ? amount * xpBoost.multiplier : amount;
-        let streakMultiplier = 1.0;
-        if (state.streak >= 90) streakMultiplier = 2.0;
-        else if (state.streak >= 60) streakMultiplier = 1.75;
-        else if (state.streak >= 30) streakMultiplier = 1.5;
-        else if (state.streak >= 7) streakMultiplier = 1.25;
-        else if (state.streak >= 3) streakMultiplier = 1.1;
-
+        const streakMultiplier = 1.0 + (state.streak * 0.01); // 1% increase per streak day
         const totalXPAdd = Math.floor(finalXP * streakMultiplier);
         const newXP = state.xp + totalXPAdd;
         const newLevel = getLevelFromXP(newXP);
@@ -166,10 +160,10 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
         };
 
         set({ xp: newXP, level: newLevel, expPopups: [...state.expPopups, newPopup] });
-        get().addCoins(totalXPAdd);
+        get().addCoins(Math.max(1, Math.floor(totalXPAdd * 0.2))); // 20% of XP as Coins instead of 100%
 
         if (newLevel > currentLevel) {
-            // Level up...
+            // Level up logic...
         }
         autoSave(get);
     },
@@ -320,9 +314,18 @@ export const useAetherStore = create<AetherState>()((set, get) => ({
             }
             return;
         }
+
+        // Handle banners/effects/themes
         if (!state.inventory.includes(itemId) && itemId !== 'default') return;
         const item = SHOP_ITEMS.find(i => i.id === itemId);
-        set((s: AetherState) => ({ equipped: { ...s.equipped, [category]: item?.value || 'default' } }));
+        const value = item?.value || (itemId === 'default' ? 'default' : 'none');
+
+        set((s: AetherState) => ({
+            equipped: {
+                ...s.equipped,
+                [category]: value
+            }
+        }));
         autoSave(get);
     },
     checkBoosts: () => {

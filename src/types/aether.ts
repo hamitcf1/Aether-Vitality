@@ -110,6 +110,8 @@ export interface AetherState {
         theme: string;
         frame: string;
         title: string;
+        banner: string;
+        effect: string;
     };
     activeBoosts: Boost[];
     aiTokens: number;

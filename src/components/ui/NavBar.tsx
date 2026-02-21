@@ -21,23 +21,23 @@ const navGroups = [
         items: [
             { path: '/chat', icon: MessageCircle, label: 'Alchemist' },
             { path: '/reports', icon: BarChart3, label: 'Reports' },
-            { path: '/treasury', icon: Coins, label: 'Treasury' },
         ]
     },
     {
         label: 'World',
         items: [
             { path: '/community', icon: Users, label: 'Community' },
-            { path: '/messages', icon: MessageSquare, label: 'Telepathy' },
             { path: '/guilds', icon: Shield, label: 'Guilds' },
+            { path: '/messages', icon: MessageSquare, label: 'Telepathy' },
             { path: '/leaderboard', icon: Trophy, label: 'Leaders' },
         ]
     },
     {
-        label: 'Arcade',
+        label: 'Vault',
         items: [
+            { path: '/shop', icon: Sparkles, label: 'Shop' },
+            { path: '/treasury', icon: Coins, label: 'Treasury' },
             { path: '/gaming', icon: Gamepad2, label: 'Arcade' },
-            { path: '/shop', icon: Shield, label: 'Shop' }, // Fixed icon to something more appropriate if needed, but keeping consistently
         ]
     },
     {
