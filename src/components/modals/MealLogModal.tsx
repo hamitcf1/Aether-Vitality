@@ -130,11 +130,11 @@ export const MealLogModal: React.FC<MealLogModalProps> = ({ isOpen, onClose, onL
             selectedItems.map(item => ({
                 name: item.food.name,
                 emoji: item.food.emoji,
-                calories: Math.round(item.food.calories * item.multiplier),
-                sugar: item.food.sugar * item.multiplier,
-                protein: (item.food.protein || 0) * item.multiplier,
-                carbs: (item.food.carbs || 0) * item.multiplier,
-                fat: (item.food.fat || 0) * item.multiplier,
+                calories: item.food.calories,
+                sugar: item.food.sugar,
+                protein: item.food.protein || 0,
+                carbs: item.food.carbs || 0,
+                fat: item.food.fat || 0,
                 servings: item.multiplier
             }))
         );
