@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { Sparkles, Loader2 } from 'lucide-react';
 

@@ -7,6 +7,7 @@ import { HeroCard } from '../components/social/HeroCard';
 import { UserFeed } from '../components/social/UserFeed';
 import { db } from '../lib/firebase';
 import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, getDocs, where } from 'firebase/firestore';
+import { GuildsPage } from './social/GuildsPage';
 
 interface GlobalChatMessage {
     id: string;
@@ -18,7 +19,7 @@ interface GlobalChatMessage {
 
 export const CommunityPage: React.FC = () => {
     const user = useAuthStore(s => s.user);
-    const [activeTab, setActiveTab] = useState<'feed' | 'chat' | 'seekers' | 'forum'>('feed');
+    const [activeTab, setActiveTab] = useState<'feed' | 'chat' | 'seekers' | 'forum' | 'guilds'>('feed');
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -89,6 +90,7 @@ export const CommunityPage: React.FC = () => {
                 <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
                     <button onClick={() => setActiveTab('feed')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'feed' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Nexus Feed</button>
                     <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'chat' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Global Hub</button>
+                    <button onClick={() => setActiveTab('guilds')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'guilds' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Guilds</button>
                     <button onClick={() => setActiveTab('seekers')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'seekers' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Seekers</button>
                     <button onClick={() => setActiveTab('forum')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'forum' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-500'}`}>Hallowed Halls</button>
                 </div>
@@ -175,6 +177,12 @@ export const CommunityPage: React.FC = () => {
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'guilds' && (
+                    <div className="py-2">
+                        <GuildsPage />
                     </div>
                 )}
             </div>

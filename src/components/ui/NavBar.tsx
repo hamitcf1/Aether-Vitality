@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, MessageSquare, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Shield, Trophy, LogOut, Clock, Calendar, Users, Coins, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, MessageSquare, User, Sparkles, Activity, BarChart3, Gamepad2, Book, Wind, Trophy, LogOut, Clock, Calendar, Users, Coins, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { useUserStore } from '../../store/userStore';
@@ -28,7 +28,6 @@ const navGroups = [
         label: 'World',
         items: [
             { path: '/community', icon: Users, label: 'Community' },
-            { path: '/guilds', icon: Shield, label: 'Guilds' },
             { path: '/messages', icon: MessageSquare, label: 'Telepathy' },
             { path: '/leaderboard', icon: Trophy, label: 'Leaders' },
         ]

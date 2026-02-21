@@ -5,7 +5,6 @@ import { useGuildsStore } from '../../store/guildsStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAetherStore } from '../../store/aetherStore';
 
-import { PageTransition } from '../../components/layout/PageTransition';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GuildChat } from '../../components/social/GuildChat';
 import { CreateGuildModal } from '../../components/social/CreateGuildModal';
@@ -59,7 +58,7 @@ export const GuildsPage: React.FC = () => {
     };
 
     return (
-        <PageTransition className="space-y-6">
+        <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight flex items-center gap-3">
@@ -312,6 +311,6 @@ export const GuildsPage: React.FC = () => {
             {showCreateModal && (
                 <CreateGuildModal onClose={() => setShowCreateModal(false)} />
             )}
-        </PageTransition>
+        </div>
     );
 };
